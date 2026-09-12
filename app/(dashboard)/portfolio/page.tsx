@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   TrendingUp, TrendingDown, Plus, Search, RefreshCw, Info,
 } from "lucide-react";
@@ -73,14 +73,23 @@ export default function PortfolioPage() {
   const [assetFilter, setAssetFilter] = useState<AssetFilter>("all");
   const [search, setSearch]         = useState("");
 
-  const holdings = HOLDINGS.map((h) => {
-    const marketValue = +(h.qty * h.current).toFixed(2);
-    const invested    = +(h.qty * h.avg).toFixed(2);
-    const gainLoss    = +(marketValue - invested).toFixed(2);
-    const gainLossPct = +((gainLoss / invested) * 100).toFixed(2);
-    const dayChange   = +(Math.random() * 4 - 1).toFixed(2);
-    return { ...h, marketValue, invested, gainLoss, gainLossPct, dayChange };
-  });
+  // Stable day-change values — initialised once, won't flicker on re-renders
+  const stableDayChanges = useMemo(
+    () => HOLDINGS.map(() => +(Math.random() * 4 - 1).toFixed(2)),
+    []
+  );
+
+  const holdings = useMemo(
+    () =>
+      HOLDINGS.map((h, i) => {
+        const marketValue = +(h.qty * h.current).toFixed(2);
+        const invested    = +(h.qty * h.avg).toFixed(2);
+        const gainLoss    = +(marketValue - invested).toFixed(2);
+        const gainLossPct = +((gainLoss / invested) * 100).toFixed(2);
+        return { ...h, marketValue, invested, gainLoss, gainLossPct, dayChange: stableDayChanges[i] };
+      }),
+    [stableDayChanges]
+  );
 
   const totalValue    = holdings.reduce((s, h) => s + h.marketValue, 0);
   const totalInvested = holdings.reduce((s, h) => s + h.invested, 0);

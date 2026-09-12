@@ -444,30 +444,42 @@ function PaymentsTab() {
   );
 }
 
+// ─── Privacy toggle row (own component so useState is at top level) ───────────
+function PrivacyToggleRow({ label, desc, defaultOn }: { label: string; desc: string; defaultOn: boolean }) {
+  const [on, setOn] = useState(defaultOn);
+  return (
+    <div className="flex items-center justify-between py-3 border-b border-light-border dark:border-dark-border last:border-0">
+      <div>
+        <p className="text-sm font-medium text-slate-900 dark:text-white">{label}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{desc}</p>
+      </div>
+      <Toggle checked={on} onChange={() => setOn(!on)} />
+    </div>
+  );
+}
+
 // ─── Privacy tab ─────────────────────────────────────────────────────────────
 function PrivacyTab() {
+  const privacyItems = [
+    { label: "Share analytics data",     desc: "Help us improve by sharing anonymous usage data", on: true  },
+    { label: "Marketing communications", desc: "Receive personalised offers and updates",         on: false },
+    { label: "Third-party data sharing", desc: "Allow partners to use your data for services",   on: false },
+    { label: "Transaction insights",     desc: "Allow AI analysis of your spending habits",      on: true  },
+  ];
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader><CardTitle>Data & Privacy</CardTitle></CardHeader>
         <div className="space-y-4">
-          {[
-            { label: "Share analytics data",         desc: "Help us improve by sharing anonymous usage data", on: true  },
-            { label: "Marketing communications",     desc: "Receive personalised offers and updates",         on: false },
-            { label: "Third-party data sharing",     desc: "Allow partners to use your data for services",   on: false },
-            { label: "Transaction insights",         desc: "Allow AI analysis of your spending habits",      on: true  },
-          ].map((item) => {
-            const [on, setOn] = useState(item.on);
-            return (
-              <div key={item.label} className="flex items-center justify-between py-3 border-b border-light-border dark:border-dark-border last:border-0">
-                <div>
-                  <p className="text-sm font-medium text-slate-900 dark:text-white">{item.label}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{item.desc}</p>
-                </div>
-                <Toggle checked={on} onChange={() => setOn(!on)} />
-              </div>
-            );
-          })}
+          {privacyItems.map((item) => (
+            <PrivacyToggleRow
+              key={item.label}
+              label={item.label}
+              desc={item.desc}
+              defaultOn={item.on}
+            />
+          ))}
         </div>
       </Card>
 

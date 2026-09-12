@@ -3,63 +3,34 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
-  Landmark,
-  Send,
-  ArrowLeftRight,
-  TrendingUp,
-  Bell,
-  Settings,
-  LogOut,
-  ChevronLeft,
-  ChevronRight,
-  Leaf,
+  LayoutDashboard, Landmark, Send, ArrowLeftRight,
+  TrendingUp, Bell, Settings, LogOut,
+  ChevronLeft, ChevronRight, Leaf,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Avatar from "@/components/ui/Avatar";
-import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const navItems = [
-  {
-    label: "Dashboard",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    label: "Banking",
-    href: "/banking",
-    icon: Landmark,
-  },
-  {
-    label: "Payments",
-    href: "/payments",
-    icon: Send,
-  },
-  {
-    label: "Transactions",
-    href: "/transactions",
-    icon: ArrowLeftRight,
-  },
-  {
-    label: "Portfolio",
-    href: "/portfolio",
-    icon: TrendingUp,
-  },
-  {
-    label: "Notifications",
-    href: "/notifications",
-    icon: Bell,
-  },
+  { label: "Dashboard",     href: "/dashboard",    icon: LayoutDashboard },
+  { label: "Banking",       href: "/banking",       icon: Landmark        },
+  { label: "Payments",      href: "/payments",      icon: Send            },
+  { label: "Transactions",  href: "/transactions",  icon: ArrowLeftRight  },
+  { label: "Portfolio",     href: "/portfolio",     icon: TrendingUp      },
+  { label: "Notifications", href: "/notifications", icon: Bell            },
 ];
 
 const bottomItems = [
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  collapsed: boolean;
+  onCollapsedChange: (v: boolean) => void;
+}
+
+export default function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
 
   return (
     <motion.aside
@@ -96,8 +67,7 @@ export default function Sidebar() {
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 px-3 space-y-1 scrollbar-hide">
         {navItems.map(({ label, href, icon: Icon }) => {
-          const isActive =
-            pathname === href || pathname.startsWith(href + "/");
+          const isActive = pathname === href || pathname.startsWith(href + "/");
           return (
             <Link
               key={href}
@@ -176,7 +146,7 @@ export default function Sidebar() {
         {/* Logout */}
         <button
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:bg-red-900/20 hover:text-red-400 transition-all duration-150 group"
-          onClick={() => {/* handle logout */}}
+          onClick={() => {/* TODO: wire to auth signOut */}}
         >
           <LogOut className="h-5 w-5 flex-shrink-0 group-hover:text-red-400" />
           <AnimatePresence>
@@ -205,9 +175,7 @@ export default function Sidebar() {
                 transition={{ duration: 0.1 }}
                 className="flex-1 min-w-0"
               >
-                <p className="text-sm font-medium text-slate-200 truncate">
-                  Gabriel O
-                </p>
+                <p className="text-sm font-medium text-slate-200 truncate">Gabriel O</p>
                 <p className="text-xs text-slate-500 truncate">Personal</p>
               </motion.div>
             )}
@@ -217,15 +185,14 @@ export default function Sidebar() {
 
       {/* Collapse toggle */}
       <button
-        onClick={() => setCollapsed(!collapsed)}
+        onClick={() => onCollapsedChange(!collapsed)}
         className={cn(
           "absolute top-[72px] -right-3 z-10",
           "h-6 w-6 rounded-full",
           "bg-dark-surface border border-dark-border",
           "flex items-center justify-center",
           "text-slate-400 hover:text-white hover:bg-primary-700",
-          "transition-colors duration-150",
-          "shadow-md"
+          "transition-colors duration-150 shadow-md"
         )}
         aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
       >

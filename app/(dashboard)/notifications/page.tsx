@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   Bell, CheckCheck, Trash2, ArrowUpRight,
   TrendingUp, Shield, CreditCard,
@@ -225,13 +226,13 @@ export default function NotificationsPage() {
                       {notif.message}
                     </p>
                     {notif.action_url && (
-                      <a
+                      <Link
                         href={notif.action_url}
                         onClick={(e) => e.stopPropagation()}
                         className="inline-flex items-center gap-1 text-xs text-primary-600 dark:text-primary-400 hover:underline mt-1.5 font-medium"
                       >
                         View details <ArrowUpRight className="h-3 w-3" />
-                      </a>
+                      </Link>
                     )}
                   </div>
 

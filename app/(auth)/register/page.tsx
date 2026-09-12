@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -102,6 +103,7 @@ export default function RegisterPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [step1Data, setStep1Data] = useState<Step1Data | null>(null);
+  const router = useRouter();
 
   const form1 = useForm<Step1Data>({
     resolver: zodResolver(personalSchema),
@@ -427,7 +429,12 @@ export default function RegisterPage() {
                 {step1Data?.email}
               </span>
             </p>
-            <Button fullWidth size="lg" rightIcon={<ArrowRight className="h-4 w-4" />}>
+            <Button
+              fullWidth
+              size="lg"
+              rightIcon={<ArrowRight className="h-4 w-4" />}
+              onClick={() => router.push("/dashboard")}
+            >
               Go to Dashboard
             </Button>
           </motion.div>

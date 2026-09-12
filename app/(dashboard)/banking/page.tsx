@@ -168,7 +168,7 @@ export default function BankingPage() {
         {[
           { label: "Total Balance", value: 27621.30, currency: "USD", change: "+2.4%", positive: true },
           { label: "Monthly Income", value: 6200, currency: "USD", change: "+8.1%", positive: true },
-          { label: "Monthly Spend",  value: 3240, currency: "USD", change: "-5.2%", positive: true },
+          { label: "Monthly Spend",  value: 3240, currency: "USD", change: "-5.2%", positive: false },
         ].map((s) => (
           <div key={s.label} className="stat-card">
             <p className="text-sm text-slate-500 dark:text-slate-400">{s.label}</p>
