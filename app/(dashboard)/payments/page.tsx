@@ -193,6 +193,13 @@ export default function PaymentsPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // Clear lookup when transfer type changes (local ↔ international)
+  useEffect(() => {
+    setLookupResult(null);
+    setLookupLoading(false);
+    if (lookupTimerRef.current) clearTimeout(lookupTimerRef.current);
+  }, [transferType]);
+
   // Live FX preview
   const fromRate    = fxRates[fromCurrency] ?? 1;
   const toRate      = fxRates[toCurrency]   ?? 1;
@@ -317,9 +324,7 @@ export default function PaymentsPage() {
                       ))}
                     </div>
 
-                    <Input label="Recipient Name" placeholder="Full name" error={errors.recipient_name?.message} {...register("recipient_name")} />
-
-                    {/* Account number with auto-lookup */}
+                    {/* ── Step 1: Account number — always visible ── */}
                     <div>
                       <Input
                         label={transferType === "international" ? "IBAN / Account Number" : "Account Number"}
@@ -329,7 +334,8 @@ export default function PaymentsPage() {
                           onChange: (e) => handleAccountNumberChange(e.target.value),
                         })}
                       />
-                      {/* Lookup status */}
+
+                      {/* Lookup states */}
                       {lookupLoading && (
                         <div className="mt-2 flex items-center gap-2 text-xs text-slate-400">
                           <div className="h-3 w-3 rounded-full border-2 border-primary-400 border-t-transparent animate-spin" />
@@ -337,57 +343,95 @@ export default function PaymentsPage() {
                         </div>
                       )}
                       {!lookupLoading && lookupResult?.found && (
-                        <div className="mt-2 flex items-center gap-3 bg-green-500/10 border border-green-500/20 rounded-xl px-3 py-2">
+                        <motion.div
+                          initial={{ opacity: 0, y: -4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="mt-2 flex items-center gap-3 bg-green-500/10 border border-green-500/20 rounded-xl px-3 py-2.5"
+                        >
                           <CheckCircle2 className="h-4 w-4 text-green-400 flex-shrink-0" />
-                          <div className="min-w-0">
+                          <div className="min-w-0 flex-1">
                             <p className="text-sm font-semibold text-green-400 truncate">{lookupResult.name}</p>
                             <p className="text-xs text-slate-400 capitalize">
                               {lookupResult.accountType} account · {lookupResult.currency}
                             </p>
                           </div>
-                        </div>
+                        </motion.div>
                       )}
                       {!lookupLoading && lookupResult?.found === false && (
                         <div className="mt-2 flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2 text-xs text-red-400">
-                          <span className="h-4 w-4 flex-shrink-0 text-base leading-none">⚠</span>
+                          <span className="text-base leading-none">⚠</span>
                           Account not found — double-check the number
                         </div>
                       )}
                     </div>
 
-                    {/* Amount + currency */}
-                    <div>
-                      <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Amount</p>
-                      <div className="flex gap-2">
-                        <div className="w-36 flex-shrink-0">
-                          <CurrencyPicker value={fromCurrency} onChange={setFrom} />
-                        </div>
-                        <Input type="number" placeholder="0.00" step="0.01" min="0" error={errors.amount?.message} {...register("amount")} />
-                      </div>
-                      {transferType === "international" && Number(watchAmount) > 0 && (
-                        <div className="mt-2 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                          <Globe className="h-3.5 w-3.5 text-primary-500" />
-                          <span>Recipient gets ~</span>
-                          <span className="font-semibold text-primary-600 dark:text-primary-400">
-                            {CURRENCIES.find(c => c.code === toCurrency)?.symbol}{previewAmt} {toCurrency}
-                          </span>
-                          <span>· Rate: 1 {fromCurrency} = {(toRate/fromRate).toFixed(4)} {toCurrency}</span>
-                        </div>
+                    {/* ── Step 2: Rest of the form — only shown after successful lookup ── */}
+                    <AnimatePresence>
+                      {lookupResult?.found && (
+                        <motion.div
+                          key="transfer-fields"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.25, ease: "easeOut" }}
+                          className="overflow-hidden"
+                        >
+                          <div className="space-y-4 pt-1">
+                            {/* Recipient name — auto-filled, still editable */}
+                            <Input
+                              label="Recipient Name"
+                              placeholder="Full name"
+                              error={errors.recipient_name?.message}
+                              {...register("recipient_name")}
+                            />
+
+                            {/* Amount + currency */}
+                            <div>
+                              <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Amount</p>
+                              <div className="flex gap-2">
+                                <div className="w-36 flex-shrink-0">
+                                  <CurrencyPicker value={fromCurrency} onChange={setFrom} />
+                                </div>
+                                <Input type="number" placeholder="0.00" step="0.01" min="0" error={errors.amount?.message} {...register("amount")} />
+                              </div>
+                              {transferType === "international" && Number(watchAmount) > 0 && (
+                                <div className="mt-2 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                                  <Globe className="h-3.5 w-3.5 text-primary-500" />
+                                  <span>Recipient gets ~</span>
+                                  <span className="font-semibold text-primary-600 dark:text-primary-400">
+                                    {CURRENCIES.find(c => c.code === toCurrency)?.symbol}{previewAmt} {toCurrency}
+                                  </span>
+                                  <span>· Rate: 1 {fromCurrency} = {(toRate/fromRate).toFixed(4)} {toCurrency}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {transferType === "international" && (
+                              <CurrencyPicker value={toCurrency} onChange={setTo} label="Recipient Currency" />
+                            )}
+
+                            <Input label="Description" placeholder="What's this for?" error={errors.description?.message} {...register("description")} />
+
+                            <div className="pt-1">
+                              <Button type="submit" fullWidth size="lg" leftIcon={<Send className="h-4 w-4" />}>
+                                Review Transfer
+                              </Button>
+                              <p className="text-xs text-center text-slate-400 dark:text-slate-500 mt-2">
+                                Local transfers are instant · International: 1–3 business days
+                              </p>
+                            </div>
+                          </div>
+                        </motion.div>
                       )}
-                    </div>
+                    </AnimatePresence>
 
-                    {transferType === "international" && (
-                      <CurrencyPicker value={toCurrency} onChange={setTo} label="Recipient Currency" />
+                    {/* Prompt when no lookup yet */}
+                    {!lookupResult && !lookupLoading && (
+                      <div className="flex items-center gap-3 rounded-xl border border-dashed border-dark-border px-4 py-4 text-sm text-slate-400">
+                        <Search className="h-4 w-4 flex-shrink-0 text-slate-500" />
+                        Enter the recipient's account number above to continue
+                      </div>
                     )}
-
-                    <Input label="Description" placeholder="What's this for?" error={errors.description?.message} {...register("description")} />
-
-                    <div className="pt-1">
-                      <Button type="submit" fullWidth size="lg" leftIcon={<Send className="h-4 w-4" />}>Review Transfer</Button>
-                      <p className="text-xs text-center text-slate-400 dark:text-slate-500 mt-2">
-                        Local transfers are instant · International: 1–3 business days
-                      </p>
-                    </div>
                   </form>
                 </Card>
               </motion.div>
