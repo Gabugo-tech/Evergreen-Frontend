@@ -8,12 +8,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   Eye, EyeOff, Mail, Lock, User, Phone, ArrowRight,
-  CheckCircle2, Leaf, Building2,
+  CheckCircle2, Building2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { cn } from "@/lib/utils";
+import { authApi } from "@/lib/api";
+import toast from "react-hot-toast";
 
 const personalSchema = z.object({
   full_name: z.string().min(2, "Name must be at least 2 characters"),
@@ -39,8 +41,6 @@ const securitySchema = z.object({
 
 type Step1Data = z.infer<typeof personalSchema>;
 type Step2Data = z.infer<typeof securitySchema>;
-
-type RegisterData = Step1Data & Step2Data;
 
 const steps = [
   { id: 1, label: "Personal Info" },
@@ -125,10 +125,19 @@ export default function RegisterPage() {
     if (!step1Data) return;
     setIsLoading(true);
     try {
-      const payload: RegisterData = { ...step1Data, ...data };
-      console.log("Register:", payload);
-      await new Promise((r) => setTimeout(r, 1500));
+      const payload = {
+        full_name:    step1Data.full_name,
+        email:        step1Data.email,
+        phone:        step1Data.phone,
+        password:     data.password,
+        account_type: data.account_type,
+      };
+      const res = await authApi.register(payload);
+      const { token } = res.data as { token: string };
+      localStorage.setItem("eg_token", token);
       setStep(3);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Registration failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -144,7 +153,7 @@ export default function RegisterPage() {
       {/* Mobile logo */}
       <div className="flex lg:hidden items-center gap-2 mb-8">
         <div className="h-9 w-9 rounded-xl bg-gradient-blue flex items-center justify-center shadow-glow-sm">
-          <Leaf className="h-5 w-5 text-white" />
+          <span className="text-white font-bold text-sm">EG</span>
         </div>
         <span className="text-xl font-bold text-slate-900 dark:text-white">Evergreen</span>
       </div>

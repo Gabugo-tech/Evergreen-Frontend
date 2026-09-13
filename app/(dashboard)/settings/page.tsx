@@ -15,6 +15,9 @@ import Badge from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/context/AuthContext";
+import { usersApi } from "@/lib/api";
+import toast from "react-hot-toast";
 
 type SettingsTab =
   | "profile"
@@ -62,33 +65,46 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: () =
 
 // ─── Profile tab ─────────────────────────────────────────────────────────────
 function ProfileTab() {
-  const [saved, setSaved] = useState(false);
+  const { user, refreshUser } = useAuth();
+  const [saved,     setSaved]     = useState(false);
+  const [saving,    setSaving]    = useState(false);
+  const [fullName,  setFullName]  = useState(user?.full_name ?? "");
+  const [phone,     setPhone]     = useState(user?.phone ?? "");
+
+  const nameParts   = fullName.trim().split(" ");
+  const firstName   = nameParts[0] ?? "";
+  const lastName    = nameParts.slice(1).join(" ");
+
   const save = async () => {
-    await new Promise((r) => setTimeout(r, 800));
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+    setSaving(true);
+    try {
+      await usersApi.updateProfile({ full_name: fullName, phone });
+      await refreshUser();
+      setSaved(true);
+      toast.success("Profile updated");
+      setTimeout(() => setSaved(false), 2500);
+    } catch {
+      toast.error("Failed to save changes");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <div className="space-y-6">
       {/* Avatar */}
       <Card>
-        <CardHeader>
-          <CardTitle>Profile Photo</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>Profile Photo</CardTitle></CardHeader>
         <div className="flex items-center gap-5">
           <div className="relative">
-            <Avatar name="Gabriel O" size="xl" />
-            <button
-              className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-primary-600 text-white flex items-center justify-center shadow-md hover:bg-primary-700 transition-colors"
-              aria-label="Change photo"
-            >
+            <Avatar name={user?.full_name ?? "U"} src={user?.avatar_url} size="xl" />
+            <button className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-primary-600 text-white flex items-center justify-center shadow-md hover:bg-primary-700 transition-colors" aria-label="Change photo">
               <Camera className="h-3.5 w-3.5" />
             </button>
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-900 dark:text-white">Gabriel O</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Personal account · Verified</p>
+            <p className="text-sm font-medium text-slate-900 dark:text-white">{user?.full_name ?? "—"}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 capitalize">{user?.account_type ?? "Personal"} account · {user?.kyc_status ?? "pending"}</p>
             <div className="flex items-center gap-2 mt-2">
               <Button variant="secondary" size="xs">Upload Photo</Button>
               <Button variant="ghost" size="xs" className="text-danger-light">Remove</Button>
@@ -101,28 +117,20 @@ function ProfileTab() {
       <Card>
         <CardHeader>
           <CardTitle>Personal Information</CardTitle>
-          <Badge variant="green" dot>Verified</Badge>
+          <Badge variant={user?.kyc_status === "verified" ? "green" : "yellow"} dot>
+            {user?.kyc_status ?? "pending"}
+          </Badge>
         </CardHeader>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="First Name" defaultValue="Gabriel" placeholder="First name" />
-          <Input label="Last Name"  defaultValue="O"       placeholder="Last name" />
-          <Input label="Email Address" type="email" defaultValue="gabriel@evergreen.com" hint="Verified email" />
-          <Input label="Phone Number" type="tel" defaultValue="+1 (555) 000-0000" />
-          <Input label="Date of Birth" type="date" defaultValue="1995-06-15" />
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Country</label>
-            <select className="input-base">
-              <option>United States</option><option>United Kingdom</option>
-              <option>Nigeria</option><option>Canada</option><option>Germany</option>
-            </select>
-          </div>
-        </div>
-        <div className="mt-4">
-          <Input label="Address" placeholder="Street address" defaultValue="123 Main Street, San Francisco, CA 94102" />
+          <Input label="First Name" value={firstName} onChange={e => setFullName(`${e.target.value} ${lastName}`.trim())} placeholder="First name" />
+          <Input label="Last Name"  value={lastName}  onChange={e => setFullName(`${firstName} ${e.target.value}`.trim())} placeholder="Last name" />
+          <Input label="Email Address" type="email" value={user?.email ?? ""} readOnly hint="Contact support to change email" />
+          <Input label="Phone Number" type="tel" value={phone} onChange={e => setPhone(e.target.value)} />
         </div>
         <div className="mt-5 flex items-center gap-3">
           <Button
             onClick={save}
+            loading={saving}
             leftIcon={saved ? <CheckCircle2 className="h-4 w-4" /> : <Save className="h-4 w-4" />}
             className={saved ? "bg-success-light hover:bg-success-dark" : ""}
           >
@@ -509,6 +517,12 @@ function PrivacyTab() {
 // ─── Main settings page ───────────────────────────────────────────────────────
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
+  const { logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    window.location.href = "/login";
+  };
 
   const tabContent: Record<SettingsTab, React.ReactNode> = {
     profile:       <ProfileTab />,
@@ -550,7 +564,9 @@ export default function SettingsPage() {
               ))}
 
               <div className="pt-2 mt-2 border-t border-light-border dark:border-dark-border">
-                <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-danger-light transition-all">
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-danger-light transition-all">
                   <LogOut className="h-4 w-4" />
                   Sign Out
                 </button>

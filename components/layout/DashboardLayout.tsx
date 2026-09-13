@@ -1,42 +1,75 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 import MobileSidebar from "./MobileSidebar";
+import VisitorTracker from "./VisitorTracker";
 import { Toaster } from "react-hot-toast";
+import { notificationsApi } from "@/lib/api";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
+// Desktop sidebar widths
+const SIDEBAR_EXPANDED  = 240;
+const SIDEBAR_COLLAPSED = 72;
+
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
-  const [mobileOpen, setMobileOpen]   = useState(false);
-  const [collapsed, setCollapsed]     = useState(false);
-  // unreadCount will be wired to real data in a future update
-  const notificationCount             = 3;
+  const [mobileOpen,        setMobileOpen]        = useState(false);
+  const [collapsed,         setCollapsed]          = useState(false);
+  const [notificationCount, setNotificationCount]  = useState(0);
+  const [isDesktop,         setIsDesktop]          = useState(false);
+
+  // Detect desktop to apply margin offset (avoids SSR mismatch)
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    setIsDesktop(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  // Real unread notification count, polled every 60s
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const res = await notificationsApi.unreadCount();
+        if (mounted) setNotificationCount(res.data?.count ?? 0);
+      } catch { /* silent */ }
+    };
+    load();
+    const interval = setInterval(load, 60_000);
+    return () => { mounted = false; clearInterval(interval); };
+  }, []);
+
+  const sidebarWidth = isDesktop
+    ? (collapsed ? SIDEBAR_COLLAPSED : SIDEBAR_EXPANDED)
+    : 0;
 
   return (
-    <div className="flex h-screen bg-light-bg dark:bg-dark-bg overflow-hidden">
-      {/* Desktop sidebar — receives collapse state so layout can react */}
+    <div className="flex h-screen h-dvh bg-light-bg dark:bg-dark-bg overflow-hidden">
+      {/* Desktop sidebar — hidden on mobile (mobile uses drawer) */}
       <div className="hidden lg:block flex-shrink-0">
         <Sidebar collapsed={collapsed} onCollapsedChange={setCollapsed} />
       </div>
 
-      {/* Mobile sidebar */}
+      {/* Mobile drawer */}
       <MobileSidebar open={mobileOpen} onClose={() => setMobileOpen(false)} />
 
-      {/* Main — offset matches sidebar width exactly */}
+      {/* Main content area */}
       <div
-        className="flex-1 flex flex-col min-w-0 transition-all duration-[250ms] ease-in-out"
-        style={{ marginLeft: collapsed ? 72 : 240 }}
+        className="flex-1 flex flex-col min-w-0 transition-all duration-[250ms] ease-in-out overflow-hidden"
+        style={{ marginLeft: sidebarWidth }}
       >
         <Topbar
           onMobileMenuToggle={() => setMobileOpen(true)}
           notificationCount={notificationCount}
         />
-        <main className="flex-1 overflow-y-auto">
-          <div className="p-6 max-w-7xl mx-auto animate-fade-in">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden">
+          <div className="p-4 sm:p-6 max-w-7xl mx-auto animate-fade-in">
             {children}
           </div>
         </main>
@@ -51,6 +84,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           error:   { iconTheme: { primary: "#ef4444", secondary: "white" } },
         }}
       />
+      <VisitorTracker />
     </div>
   );
 }

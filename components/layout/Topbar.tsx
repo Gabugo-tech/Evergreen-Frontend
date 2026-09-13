@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import Avatar from "@/components/ui/Avatar";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 const routeTitles: Record<string, string> = {
   "/dashboard":    "Dashboard",
@@ -22,23 +23,19 @@ interface TopbarProps {
   notificationCount?: number;
 }
 
-export default function Topbar({
-  onMobileMenuToggle,
-  notificationCount = 0,
-}: TopbarProps) {
+export default function Topbar({ onMobileMenuToggle, notificationCount = 0 }: TopbarProps) {
   const pathname = usePathname();
+  const { user } = useAuth();
   const title = routeTitles[pathname] ?? "Evergreen";
+  const displayName = user?.full_name ?? "Account";
 
   return (
-    <header
-      className={cn(
-        "sticky top-0 z-20 h-16",
-        "bg-light-surface/80 dark:bg-dark-surface/80",
-        "backdrop-blur-md",
-        "border-b border-light-border dark:border-dark-border",
-        "flex items-center px-6 gap-4"
-      )}
-    >
+    <header className={cn(
+      "sticky top-0 z-20 h-16",
+      "bg-light-surface/80 dark:bg-dark-surface/80 backdrop-blur-md",
+      "border-b border-light-border dark:border-dark-border",
+      "flex items-center px-6 gap-4"
+    )}>
       {/* Mobile menu */}
       <button
         className="lg:hidden p-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-dark-muted transition-colors"
@@ -50,9 +47,7 @@ export default function Topbar({
 
       {/* Page title */}
       <div className="flex-1">
-        <h1 className="text-xl font-semibold text-slate-900 dark:text-white">
-          {title}
-        </h1>
+        <h1 className="text-xl font-semibold text-slate-900 dark:text-white">{title}</h1>
       </div>
 
       {/* Search */}
@@ -69,7 +64,6 @@ export default function Topbar({
       <div className="flex items-center gap-2">
         <ThemeToggle />
 
-        {/* Notifications */}
         <Link
           href="/notifications"
           className="relative flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-dark-muted transition-colors"
@@ -81,9 +75,13 @@ export default function Topbar({
           )}
         </Link>
 
-        {/* User */}
         <Link href="/settings" aria-label="Profile settings">
-          <Avatar name="Gabriel O" size="sm" className="cursor-pointer hover:ring-primary-500 transition-all" />
+          <Avatar
+            name={displayName}
+            src={user?.avatar_url}
+            size="sm"
+            className="cursor-pointer hover:ring-primary-500 transition-all"
+          />
         </Link>
       </div>
     </header>

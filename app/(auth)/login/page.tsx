@@ -6,11 +6,13 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Eye, EyeOff, Mail, Lock, Leaf, ArrowRight } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
+import toast from "react-hot-toast";
 
 const loginSchema = z.object({
   email: z.string().email("Enter a valid email address"),
@@ -24,6 +26,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { login } = useAuth();
 
   const {
     register,
@@ -37,10 +40,10 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     try {
-      // TODO: replace with real API call to /api/auth/login
-      console.log("Login:", data);
-      await new Promise((r) => setTimeout(r, 1200));
+      await login(data.email, data.password);
       router.push("/dashboard");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Invalid email or password");
     } finally {
       setIsLoading(false);
     }
@@ -56,7 +59,7 @@ export default function LoginPage() {
       {/* Mobile logo */}
       <div className="flex lg:hidden items-center gap-2 mb-8">
         <div className="h-9 w-9 rounded-xl bg-gradient-blue flex items-center justify-center shadow-glow-sm">
-          <Leaf className="h-5 w-5 text-white" />
+          <span className="text-white font-bold text-sm">EG</span>
         </div>
         <span className="text-xl font-bold text-slate-900 dark:text-white">Evergreen</span>
       </div>

@@ -3,22 +3,28 @@
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import Skeleton from "@/components/ui/Skeleton";
 
 interface BalanceToggleProps {
   amount: number;
   currency: string;
+  loading?: boolean;
 }
 
-export default function BalanceToggle({ amount, currency }: BalanceToggleProps) {
+export default function BalanceToggle({ amount, currency, loading = false }: BalanceToggleProps) {
   const [visible, setVisible] = useState(true);
 
   return (
     <div className="bg-white/10 backdrop-blur border border-white/20 rounded-2xl px-5 py-4 flex items-center gap-4">
       <div>
         <p className="text-white/60 text-xs font-medium mb-1">Net Worth</p>
-        <p className="text-2xl font-bold text-white tracking-tight">
-          {visible ? formatCurrency(amount, currency) : "••••••••"}
-        </p>
+        {loading
+          ? <Skeleton width="160px" height="32px" className="bg-white/20" />
+          : (
+            <p className="text-2xl font-bold text-white tracking-tight">
+              {visible ? formatCurrency(amount, currency) : "••••••••"}
+            </p>
+          )}
         <p className="text-white/50 text-xs mt-1">Updated just now</p>
       </div>
       <button

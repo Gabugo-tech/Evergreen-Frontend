@@ -10,6 +10,8 @@ import {
 import { cn } from "@/lib/utils";
 import Avatar from "@/components/ui/Avatar";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
 
 const navItems = [
   { label: "Dashboard",     href: "/dashboard",    icon: LayoutDashboard },
@@ -31,6 +33,15 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
   const pathname = usePathname();
+  const { user, logout } = useAuth();
+  const router = useRouter();
+  const displayName   = user?.full_name ?? "Account";
+  const accountType   = user?.account_type ?? "Personal";
+
+  const handleLogout = () => {
+    logout();
+    router.push("/login");
+  };
 
   return (
     <motion.aside
@@ -146,7 +157,7 @@ export default function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) 
         {/* Logout */}
         <button
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:bg-red-900/20 hover:text-red-400 transition-all duration-150 group"
-          onClick={() => {/* TODO: wire to auth signOut */}}
+          onClick={handleLogout}
         >
           <LogOut className="h-5 w-5 flex-shrink-0 group-hover:text-red-400" />
           <AnimatePresence>
@@ -165,7 +176,7 @@ export default function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) 
 
         {/* User profile */}
         <div className="mt-3 pt-3 border-t border-dark-border flex items-center gap-3 px-1">
-          <Avatar name="Gabriel O" size="sm" />
+          <Avatar name={displayName} src={user?.avatar_url} size="sm" />
           <AnimatePresence>
             {!collapsed && (
               <motion.div
@@ -175,8 +186,8 @@ export default function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) 
                 transition={{ duration: 0.1 }}
                 className="flex-1 min-w-0"
               >
-                <p className="text-sm font-medium text-slate-200 truncate">Gabriel O</p>
-                <p className="text-xs text-slate-500 truncate">Personal</p>
+                <p className="text-sm font-medium text-slate-200 truncate">{displayName}</p>
+                <p className="text-xs text-slate-500 truncate capitalize">{accountType}</p>
               </motion.div>
             )}
           </AnimatePresence>
