@@ -31,8 +31,8 @@ const securitySchema = z.object({
     .regex(/[0-9]/, "Include a number"),
   confirm_password: z.string(),
   account_type: z.enum(["personal", "business"]),
-  agree_terms: z.literal(true, {
-    errorMap: () => ({ message: "You must accept the terms" }),
+  agree_terms: z.boolean().refine((v) => v === true, {
+    message: "You must accept the terms",
   }),
 }).refine((d) => d.password === d.confirm_password, {
   message: "Passwords do not match",
@@ -369,28 +369,30 @@ export default function RegisterPage() {
               />
 
               {/* Terms */}
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 h-4 w-4 rounded accent-primary-600"
-                  {...form2.register("agree_terms")}
-                />
-                <span className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-                  I agree to the{" "}
-                  <Link href="/terms" className="text-primary-600 dark:text-primary-400 hover:underline font-medium">
-                    Terms of Service
-                  </Link>{" "}
-                  and{" "}
-                  <Link href="/privacy" className="text-primary-600 dark:text-primary-400 hover:underline font-medium">
-                    Privacy Policy
-                  </Link>
-                </span>
-              </label>
-              {form2.formState.errors.agree_terms && (
-                <p className="text-xs text-danger-light">
-                  {form2.formState.errors.agree_terms.message}
-                </p>
-              )}
+              <div>
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 rounded accent-primary-600 cursor-pointer"
+                    {...form2.register("agree_terms")}
+                  />
+                  <span className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                    I agree to the{" "}
+                    <Link href="/terms" className="text-primary-600 dark:text-primary-400 hover:underline font-medium">
+                      Terms of Service
+                    </Link>{" "}
+                    and{" "}
+                    <Link href="/privacy" className="text-primary-600 dark:text-primary-400 hover:underline font-medium">
+                      Privacy Policy
+                    </Link>
+                  </span>
+                </label>
+                {form2.formState.errors.agree_terms && (
+                  <p className="text-xs text-danger-light mt-1.5">
+                    {form2.formState.errors.agree_terms.message}
+                  </p>
+                )}
+              </div>
 
               <div className="flex gap-3 pt-1">
                 <Button
