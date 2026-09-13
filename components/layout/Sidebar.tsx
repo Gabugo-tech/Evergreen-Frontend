@@ -5,13 +5,15 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Landmark, Send, ArrowLeftRight,
   TrendingUp, Bell, Settings, LogOut,
-  ChevronLeft, ChevronRight, Leaf,
+  ChevronLeft, ChevronRight, Leaf, Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Avatar from "@/components/ui/Avatar";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
+
+const ADMIN_EMAIL = "nnanwubagabriel@gmail.com";
 
 const navItems = [
   { label: "Dashboard",     href: "/dashboard",    icon: LayoutDashboard },
@@ -37,6 +39,7 @@ export default function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) 
   const router = useRouter();
   const displayName   = user?.full_name ?? "Account";
   const accountType   = user?.account_type ?? "Personal";
+  const isAdmin       = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
   const handleLogout = () => {
     logout();
@@ -114,6 +117,39 @@ export default function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) 
             </Link>
           );
         })}
+
+        {/* Admin link — only visible when logged in as admin */}
+        {isAdmin && (
+          <Link
+            href="/admin"
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group",
+              pathname.startsWith("/admin")
+                ? "bg-amber-900/30 text-amber-300"
+                : "text-slate-400 hover:bg-amber-900/20 hover:text-amber-300"
+            )}
+          >
+            <Shield
+              className={cn(
+                "h-5 w-5 flex-shrink-0",
+                pathname.startsWith("/admin") ? "text-amber-400" : "text-slate-500 group-hover:text-amber-400"
+              )}
+            />
+            <AnimatePresence>
+              {!collapsed && (
+                <motion.span
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.1 }}
+                  className="truncate"
+                >
+                  Admin Panel
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </Link>
+        )}
       </nav>
 
       {/* Bottom section */}

@@ -56,9 +56,11 @@ export default function AdminLoginPage() {
       const token = json.data?.token;
       if (!token) { toast.error("Authentication failed"); return; }
 
-      // Store admin session separately
+      // Store admin session
       sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
-      sessionStorage.setItem("eg_admin_email", data.email);
+      sessionStorage.setItem("eg_admin_email", data.email.toLowerCase());
+      // Also store in normal token so dashboard auth guard passes
+      localStorage.setItem("eg_token", token);
       router.push("/admin");
     } finally {
       setLoading(false);

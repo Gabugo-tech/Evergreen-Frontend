@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Landmark, Send, ArrowLeftRight,
-  TrendingUp, Bell, Settings, LogOut, X, Leaf,
+  TrendingUp, Bell, Settings, LogOut, X, Leaf, Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -30,6 +30,7 @@ export default function MobileSidebar({ open, onClose }: MobileSidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const router = useRouter();
+  const isAdmin = user?.email?.toLowerCase() === "nnanwubagabriel@gmail.com";
 
   const handleLogout = () => {
     logout();
@@ -76,7 +77,15 @@ export default function MobileSidebar({ open, onClose }: MobileSidebarProps) {
               })}
             </nav>
 
-            {/* Bottom */}
+            {/* Admin link — only visible for admin user */}
+              {isAdmin && (
+                <Link key="/admin" href="/admin" onClick={onClose}
+                  className={cn("flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
+                    pathname.startsWith("/admin") ? "bg-amber-900/30 text-amber-300" : "text-slate-400 hover:bg-amber-900/20 hover:text-amber-300")}>
+                  <Shield className={cn("h-5 w-5", pathname.startsWith("/admin") ? "text-amber-400" : "text-slate-500")} />
+                  Admin Panel
+                </Link>
+              )}
             <div className="border-t border-dark-border px-3 py-4 flex-shrink-0">
               <button onClick={handleLogout}
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:bg-red-900/20 hover:text-red-400 transition-all">

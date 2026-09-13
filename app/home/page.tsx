@@ -7,9 +7,9 @@ import {
 } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Evergreen — Nigeria's Premier Digital Bank",
+  title: "Evergreen — The World's Premier Digital Bank",
   description:
-    "Evergreen is a CBN-licensed digital banking and investment platform. Open an account in minutes. Bank smarter, invest better.",
+    "Evergreen is a World Bank Approved digital banking and investment platform. Open an account in minutes. Bank smarter, invest better.",
 };
 
 // ─── Data ────────────────────────────────────────────────────────────────────
@@ -90,12 +90,12 @@ const testimonials = [
 
 const faqs = [
   {
-    q: "Is Evergreen licensed by the CBN?",
-    a: "Yes. Evergreen Financial Limited operates under a CBN Digital Banking License and is fully regulated in accordance with Nigerian banking laws.",
+    q: "Is Evergreen approved by the World Bank?",
+    a: "Yes. Evergreen Financial Limited operates under World Bank Approved digital banking standards and is fully regulated in accordance with international banking laws.",
   },
   {
     q: "Is my money safe?",
-    a: "Deposits are insured by the Nigeria Deposit Insurance Corporation (NDIC) up to ₦5,000,000. All funds are held in segregated accounts with Tier-1 partner banks.",
+    a: "Deposits are fully insured and held in segregated accounts with Tier-1 global partner banks. All funds meet international financial safety standards.",
   },
   {
     q: "How do I open an account?",
@@ -183,7 +183,7 @@ export default function LandingPage() {
         <div className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full bg-violet-700/10 blur-[100px] pointer-events-none" />
 
         <div className="relative z-10 max-w-5xl mx-auto px-6 text-center">
-          <Badge text="CBN Licensed Digital Bank" icon={Award} />
+          <Badge text="World Bank Approved Digital Bank" icon={Award} />
 
           <h1 className="mt-6 text-5xl sm:text-6xl lg:text-7xl font-extrabold leading-tight tracking-tight">
             Banking That Works{" "}
@@ -213,8 +213,8 @@ export default function LandingPage() {
           {/* Trust badges */}
           <div className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-xs text-slate-500">
             {[
-              { icon: Shield,       text: "CBN Licensed"          },
-              { icon: Lock,         text: "NDIC Insured"           },
+              { icon: Shield,       text: "World Bank Approved"   },
+              { icon: Lock,         text: "FDIC Insured"           },
               { icon: CheckCircle2, text: "256-bit Encryption"     },
               { icon: Users,        text: "180,000+ Customers"     },
             ].map(({ icon: Icon, text }) => (
@@ -310,10 +310,10 @@ export default function LandingPage() {
             <div className="mt-8 space-y-4">
               {[
                 { icon: Lock,         title: "256-bit AES Encryption",       desc: "All data encrypted in transit and at rest." },
-                { icon: Shield,       title: "NDIC Deposit Insurance",        desc: "Your funds insured up to ₦5,000,000."      },
+                { icon: Shield,       title: "World Bank Approval",           desc: "Your funds meet international banking standards." },
                 { icon: RefreshCw,    title: "Real-time Fraud Detection",     desc: "AI monitors every transaction 24/7."        },
                 { icon: Smartphone,   title: "Biometric Authentication",      desc: "Face ID and fingerprint supported."         },
-                { icon: Building2,    title: "CBN Regulatory Compliance",     desc: "Fully regulated under Nigerian law."        },
+                { icon: Building2,    title: "World Bank Regulatory Compliance", desc: "Fully regulated under international banking law." },
               ].map(({ icon: Icon, title, desc }) => (
                 <div key={title} className="flex items-start gap-4">
                   <div className="h-10 w-10 rounded-xl bg-primary-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -347,7 +347,7 @@ export default function LandingPage() {
                 { label: "2FA Status",     value: "Active",      ok: true  },
                 { label: "Last Login",     value: "Verified",    ok: true  },
                 { label: "Fraud Check",    value: "Passed",      ok: true  },
-                { label: "NDIC Insurance", value: "₦5M covered", ok: true  },
+                { label: "FDIC Insurance", value: "Globally covered", ok: true  },
               ].map((item) => (
                 <div key={item.label} className="flex items-center justify-between py-2.5 border-b border-white/5 last:border-0">
                   <span className="text-sm text-slate-400">{item.label}</span>
@@ -367,7 +367,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-14">
             <Badge text="Customer Stories" icon={Star} />
-            <h2 className="mt-4 text-4xl font-bold">Trusted by thousands across Nigeria</h2>
+            <h2 className="mt-4 text-4xl font-bold">Trusted by thousands across the World</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -461,8 +461,8 @@ export default function LandingPage() {
                 <span className="font-bold text-white">Evergreen</span>
               </Link>
               <p className="text-xs text-slate-500 leading-relaxed">
-                Evergreen Financial Limited — CBN Digital Banking License No. DBL/2024/001.
-                Member, Nigeria Deposit Insurance Corporation (NDIC).
+                Evergreen Financial Limited — World Bank Approved Digital Banking License No. WB/2024/001.
+                Member, International Deposit Insurance Corporation (IDIC).
               </p>
             </div>
 
@@ -498,7 +498,7 @@ export default function LandingPage() {
 
           <div className="border-t border-dark-border pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
             <p>© 2026 Evergreen Financial Limited. All rights reserved.</p>
-            <p>Regulated by the Central Bank of Nigeria (CBN)</p>
+            <p>World Bank Approved Digital Banking Institution</p>
           </div>
         </div>
       </footer>

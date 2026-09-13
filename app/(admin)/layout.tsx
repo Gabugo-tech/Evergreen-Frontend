@@ -28,12 +28,27 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
+    // Admin must be authenticated via the normal login flow
+    const token = localStorage.getItem("eg_token");
     const email = sessionStorage.getItem("eg_admin_email");
-    if (!token || email?.toLowerCase() !== ADMIN_EMAIL) {
-      router.replace("/admin-login");
+
+    // Accept either: normal login as admin (token present + correct email)
+    // OR existing admin session token
+    const adminToken = sessionStorage.getItem(ADMIN_TOKEN_KEY);
+
+    const hasNormalAdminLogin  = !!token && email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+    const hasAdminSessionToken = !!adminToken && email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+
+    if (!hasNormalAdminLogin && !hasAdminSessionToken) {
+      router.replace("/login");
       return;
     }
+
+    // If coming from normal login, copy token to admin session
+    if (hasNormalAdminLogin && !adminToken) {
+      sessionStorage.setItem(ADMIN_TOKEN_KEY, token!);
+    }
+
     setAdminEmail(email);
   }, [router]);
 
