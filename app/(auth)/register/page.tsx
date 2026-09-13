@@ -15,6 +15,8 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { cn } from "@/lib/utils";
 import { authApi } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
+import type { User as UserType } from "@/types";
 import toast from "react-hot-toast";
 
 const personalSchema = z.object({
@@ -104,6 +106,7 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [step1Data, setStep1Data] = useState<Step1Data | null>(null);
   const router = useRouter();
+  const { setSession } = useAuth();
 
   const form1 = useForm<Step1Data>({
     resolver: zodResolver(personalSchema),
@@ -133,8 +136,9 @@ export default function RegisterPage() {
         account_type: data.account_type,
       };
       const res = await authApi.register(payload);
-      const { token } = res.data as { token: string };
-      localStorage.setItem("eg_token", token);
+      const { token, user } = res.data as { token: string; user: UserType };
+      // Hydrate auth context immediately so the dashboard sees the user
+      setSession(token, user);
       setStep(3);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Registration failed. Please try again.");

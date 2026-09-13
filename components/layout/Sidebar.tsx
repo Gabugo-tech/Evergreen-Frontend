@@ -12,6 +12,8 @@ import Avatar from "@/components/ui/Avatar";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import LogoutConfirmModal from "@/components/ui/LogoutConfirmModal";
 
 const ADMIN_EMAIL = "nnanwubagabriel@gmail.com";
 
@@ -37,16 +39,19 @@ export default function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) 
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const router = useRouter();
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const displayName   = user?.full_name ?? "Account";
   const accountType   = user?.account_type ?? "Personal";
   const isAdmin       = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
   const handleLogout = () => {
+    setLogoutOpen(false);
     logout();
     router.push("/login");
   };
 
   return (
+    <>
     <motion.aside
       animate={{ width: collapsed ? 72 : 240 }}
       transition={{ duration: 0.25, ease: "easeInOut" }}
@@ -193,7 +198,7 @@ export default function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) 
         {/* Logout */}
         <button
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:bg-red-900/20 hover:text-red-400 transition-all duration-150 group"
-          onClick={handleLogout}
+          onClick={() => setLogoutOpen(true)}
         >
           <LogOut className="h-5 w-5 flex-shrink-0 group-hover:text-red-400" />
           <AnimatePresence>
@@ -250,5 +255,12 @@ export default function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) 
         )}
       </button>
     </motion.aside>
+
+    <LogoutConfirmModal
+      open={logoutOpen}
+      onClose={() => setLogoutOpen(false)}
+      onConfirm={handleLogout}
+    />
+  </>
   );
 }

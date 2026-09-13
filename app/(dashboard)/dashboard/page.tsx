@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   TrendingUp, Wallet, CreditCard, RefreshCw,
-  ArrowUpRight, ArrowDownLeft,
+  ArrowUpRight, ArrowDownLeft, Copy, Check,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
@@ -35,6 +35,17 @@ export default function DashboardPage() {
   const [history,   setHistory]   = useState<{ date: string; value: number }[]>([]);
   const [txSummary, setTxSummary] = useState<{ totalIn: number; totalOut: number } | null>(null);
   const [loading,   setLoading]   = useState(true);
+  const [copied,    setCopied]    = useState(false);
+
+  const primaryAccount = accounts.find(a => a.is_primary) ?? accounts[0] ?? null;
+
+  const copyAccountNumber = useCallback(() => {
+    if (!primaryAccount?.account_number) return;
+    navigator.clipboard.writeText(primaryAccount.account_number).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [primaryAccount]);
 
   const firstName = user?.full_name?.split(" ")[0] ?? "there";
 
@@ -102,6 +113,27 @@ export default function DashboardPage() {
             <p className="text-white/60 text-sm mt-1">
               {loading ? "Loading your portfolio…" : `Net worth: ${formatCurrency(totalAssets, "USD")}`}
             </p>
+            {/* Account number — prominent, copyable */}
+            <div className="flex items-center gap-2 mt-3">
+              {loading ? (
+                <div className="h-8 w-44 bg-white/10 rounded-xl animate-pulse" />
+              ) : primaryAccount ? (
+                <button
+                  onClick={copyAccountNumber}
+                  title="Copy account number"
+                  className="flex items-center gap-2 bg-white/10 hover:bg-white/20 active:scale-95 transition-all px-3 py-1.5 rounded-xl group"
+                >
+                  <span className="text-white/50 text-xs font-medium uppercase tracking-wide">Acc No.</span>
+                  <span className="text-white font-mono text-sm font-semibold tracking-widest">
+                    {/* format 10 digits as XXX XXX XXXX */}
+                    {primaryAccount.account_number.replace(/(\d{3})(\d{3})(\d{4})/, "$1 $2 $3")}
+                  </span>
+                  {copied
+                    ? <Check className="h-3.5 w-3.5 text-green-400 flex-shrink-0" />
+                    : <Copy className="h-3.5 w-3.5 text-white/40 group-hover:text-white/70 flex-shrink-0 transition-colors" />}
+                </button>
+              ) : null}
+            </div>
           </div>
           <BalanceToggle
             amount={totalAssets}

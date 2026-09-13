@@ -13,6 +13,7 @@ interface AuthContextValue {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
+  setSession: (token: string, user: User) => void;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -32,10 +33,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const res = await usersApi.me();
       setUser(res.data as User);
-    } catch {
-      localStorage.removeItem(TOKEN_KEY);
-      setToken(null);
-      setUser(null);
+    } catch (err) {
+      // Only clear the session for explicit 401 auth failures.
+      // Network errors / 5xx should NOT log the user out — that caused
+      // the admin panel redirect-to-login bug on slow connections.
+      const msg = err instanceof Error ? err.message : "";
+      const is401 = msg.includes("401") || msg.toLowerCase().includes("unauthorized");
+      if (is401) {
+        localStorage.removeItem(TOKEN_KEY);
+        setToken(null);
+        setUser(null);
+      }
+      // Otherwise: leave the token/user intact and let the UI show stale state.
     }
   }, []);
 
@@ -71,6 +80,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  /** Called after registration to hydrate the session without a round-trip. */
+  const setSession = useCallback((t: string, u: User) => {
+    localStorage.setItem(TOKEN_KEY, t);
+    setToken(t);
+    setUser(u);
+  }, []);
+
   const refreshUser = useCallback(async () => {
     await fetchUser();
   }, [fetchUser]);
@@ -79,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider value={{
       user, token, isLoading,
       isAuthenticated: !!token && !!user,
-      login, logout, refreshUser,
+      login, setSession, logout, refreshUser,
     }}>
       {children}
     </AuthContext.Provider>

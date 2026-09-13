@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import Avatar from "@/components/ui/Avatar";
 import { useAuth } from "@/context/AuthContext";
+import { useState } from "react";
+import LogoutConfirmModal from "@/components/ui/LogoutConfirmModal";
 
 const navItems = [
   { label: "Dashboard",     href: "/dashboard",    icon: LayoutDashboard },
@@ -30,15 +32,18 @@ export default function MobileSidebar({ open, onClose }: MobileSidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const router = useRouter();
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const isAdmin = user?.email?.toLowerCase() === "nnanwubagabriel@gmail.com";
 
   const handleLogout = () => {
+    setLogoutOpen(false);
     logout();
     onClose();
     router.push("/login");
   };
 
   return (
+    <>
     <AnimatePresence>
       {open && (
         <div className="fixed inset-0 z-40 lg:hidden">
@@ -87,7 +92,7 @@ export default function MobileSidebar({ open, onClose }: MobileSidebarProps) {
                 </Link>
               )}
             <div className="border-t border-dark-border px-3 py-4 flex-shrink-0">
-              <button onClick={handleLogout}
+              <button onClick={() => setLogoutOpen(true)}
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:bg-red-900/20 hover:text-red-400 transition-all">
                 <LogOut className="h-5 w-5" />
                 Sign Out
@@ -104,5 +109,12 @@ export default function MobileSidebar({ open, onClose }: MobileSidebarProps) {
         </div>
       )}
     </AnimatePresence>
+
+    <LogoutConfirmModal
+      open={logoutOpen}
+      onClose={() => setLogoutOpen(false)}
+      onConfirm={handleLogout}
+    />
+    </>
   );
 }
