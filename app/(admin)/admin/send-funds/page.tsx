@@ -16,7 +16,7 @@ const NODE = process.env.NEXT_PUBLIC_NODE_API_URL ?? "http://localhost:4000";
 const ADMIN_TOKEN_KEY = "eg_admin_token";
 
 // Admin test account ID is fixed — seeded with $1B
-const ADMIN_ACCOUNT_ID = "admin-test-00000000-0000-0000-0000-000000000001";
+const ADMIN_ACCOUNT_ID = "b0000ad0-0000-0000-0000-000000000001";
 
 const schema = z.object({
   to_account_number: z.string().min(5, "Enter account number"),

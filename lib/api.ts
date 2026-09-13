@@ -19,19 +19,25 @@ async function request<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const res = await fetch(`${base}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeader(),
-      ...(options.headers ?? {}),
-    },
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${base}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeader(),
+        ...(options.headers ?? {}),
+      },
+    });
+  } catch {
+    throw new Error("Cannot reach the server. Please check your connection.");
+  }
 
-  const json = await res.json().catch(() => ({ message: "Unknown error" }));
+  const json = await res.json().catch(() => ({ message: "Server error — please try again" }));
 
   if (!res.ok) {
-    throw new Error(json.message ?? `Request failed: ${res.status}`);
+    const msg = json?.message ?? json?.error ?? `Request failed (${res.status})`;
+    throw new Error(msg);
   }
 
   return json;

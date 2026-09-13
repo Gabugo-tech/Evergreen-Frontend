@@ -54,7 +54,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await authApi.login(email, password);
-    const { token: t, user: u } = res.data as { token: string; user: User };
+    // Backend wraps response as { success, message, data: { token, user } }
+    const payload = (res as { data?: { token: string; user: User } }).data
+                 ?? (res as unknown as { token: string; user: User });
+    const t = payload.token;
+    const u = payload.user;
+    if (!t) throw new Error("Authentication failed — no token received");
     localStorage.setItem(TOKEN_KEY, t);
     setToken(t);
     setUser(u);
