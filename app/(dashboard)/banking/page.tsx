@@ -10,7 +10,7 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Skeleton from "@/components/ui/Skeleton";
 import BarChart from "@/components/charts/BarChart";
-import { formatCurrency, maskAccountNumber, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { accountsApi, transactionsApi, analyticsApi } from "@/lib/api";
 import type { BankAccount, Transaction } from "@/types";
 import Link from "next/link";
@@ -106,7 +106,14 @@ export default function BankingPage() {
                     <div className="mt-4 flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
                         <CreditCard className="h-4 w-4 text-white/60" />
-                        <span className="text-white/70 text-sm font-mono tracking-wider">{maskAccountNumber(acc.account_number)}</span>
+                        <span className="text-white/70 text-sm font-mono tracking-wider">
+                          {/* Format: pure 10 digits → XXX XXX XXXX, EG+10 → EG XXX XXX XXXX */}
+                          {/^\d{10}$/.test(acc.account_number)
+                            ? acc.account_number.replace(/(\d{3})(\d{3})(\d{4})/, "$1 $2 $3")
+                            : /^EG\d{10}$/.test(acc.account_number)
+                              ? acc.account_number.replace(/^(EG)(\d{3})(\d{3})(\d{4})$/, "$1 $2 $3 $4")
+                              : acc.account_number}
+                        </span>
                       </div>
                       <button
                         onClick={() => { navigator.clipboard.writeText(acc.account_number); toast.success("Copied!"); }}
