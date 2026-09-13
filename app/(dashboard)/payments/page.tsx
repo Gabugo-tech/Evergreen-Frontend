@@ -147,7 +147,7 @@ export default function PaymentsPage() {
     if (lookupTimerRef.current) clearTimeout(lookupTimerRef.current);
 
     // Strip formatting so "384 726 1950" → "3847261950"
-    const clean = value.replace(/[\s\-]/g, "");
+    const clean = value.replace(/[\s-]/g, "");
 
     // Need at least 5 chars to bother querying
     if (clean.length < 5) {
