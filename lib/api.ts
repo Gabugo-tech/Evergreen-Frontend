@@ -108,6 +108,10 @@ export const accountsApi = {
   balance: (id: string) => node<{ data: unknown }>(`/api/accounts/${id}/balance`),
   create: (body: unknown) =>
     node("/api/accounts", { method: "POST", body: JSON.stringify(body) }),
+  lookup: (accountNumber: string) =>
+    node<{ data: { account_number: string; account_name: string } }>(
+      `/api/accounts/lookup/${encodeURIComponent(accountNumber)}`
+    ),
 };
 
 // ─── Transactions ─────────────────────────────────────────────────────────────

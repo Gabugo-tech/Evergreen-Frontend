@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -129,6 +129,11 @@ export default function PaymentsPage() {
   const [pendingData,   setPendingData] = useState<SendFormData | null>(null);
   const [sending,       setSending]     = useState(false);
 
+  // Account lookup state
+  const [lookupLoading,  setLookupLoading]  = useState(false);
+  const [lookupResult,   setLookupResult]   = useState<{ name: string; found: boolean } | null>(null);
+  const lookupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const { register, handleSubmit, formState: { errors }, reset, watch, setValue } = useForm<SendFormData>({
     resolver: zodResolver(sendSchema),
     defaultValues: { transfer_type: "local" },
@@ -136,6 +141,37 @@ export default function PaymentsPage() {
   const transferType    = watch("transfer_type");
   const watchAmount     = watch("amount");
   const watchFromAccId  = watch("from_account_id");
+  const watchRecipientAccount = watch("recipient_account");
+
+  // Debounced account number lookup
+  const handleAccountNumberChange = useCallback((value: string) => {
+    // Clear previous timer
+    if (lookupTimerRef.current) clearTimeout(lookupTimerRef.current);
+
+    // Reset if too short
+    if (value.length < 10) {
+      setLookupResult(null);
+      setLookupLoading(false);
+      return;
+    }
+
+    setLookupLoading(true);
+    setLookupResult(null);
+
+    lookupTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await accountsApi.lookup(value);
+        const name = res.data?.account_name;
+        setLookupResult({ name, found: true });
+        // Auto-fill the recipient name field
+        setValue("recipient_name", name, { shouldValidate: true });
+      } catch {
+        setLookupResult({ name: "", found: false });
+      } finally {
+        setLookupLoading(false);
+      }
+    }, 600); // 600ms debounce
+  }, [setValue]);
 
   const loadData = useCallback(async () => {
     setHistLoad(true);
@@ -210,6 +246,7 @@ export default function PaymentsPage() {
       setReceiptData(receipt);
       setReceiptOpen(true);
       reset();
+      setLookupResult(null);
       loadData();
       toast.success("Transfer sent successfully!");
     } catch (err) {
@@ -280,10 +317,36 @@ export default function PaymentsPage() {
                     </div>
 
                     <Input label="Recipient Name" placeholder="Full name" error={errors.recipient_name?.message} {...register("recipient_name")} />
-                    <Input
-                      label={transferType === "international" ? "IBAN / Account Number" : "Account Number"}
-                      placeholder={transferType === "international" ? "GB29 NWBK 6016 1331 9268 19" : "Enter account number"}
-                      error={errors.recipient_account?.message} {...register("recipient_account")} />
+
+                    {/* Account number with auto-lookup */}
+                    <div>
+                      <Input
+                        label={transferType === "international" ? "IBAN / Account Number" : "Account Number"}
+                        placeholder={transferType === "international" ? "GB29 NWBK 6016 1331 9268 19" : "Enter 10-digit account number"}
+                        error={errors.recipient_account?.message}
+                        {...register("recipient_account", {
+                          onChange: (e) => handleAccountNumberChange(e.target.value),
+                        })}
+                      />
+                      {/* Lookup status */}
+                      {lookupLoading && (
+                        <div className="mt-1.5 flex items-center gap-2 text-xs text-slate-400">
+                          <div className="h-3 w-3 rounded-full border-2 border-primary-400 border-t-transparent animate-spin" />
+                          Fetching account details…
+                        </div>
+                      )}
+                      {!lookupLoading && lookupResult?.found && (
+                        <div className="mt-1.5 flex items-center gap-2 text-xs text-green-500 dark:text-green-400">
+                          <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
+                          <span className="font-medium">{lookupResult.name}</span>
+                        </div>
+                      )}
+                      {!lookupLoading && lookupResult?.found === false && watchRecipientAccount?.length >= 10 && (
+                        <div className="mt-1.5 text-xs text-red-400">
+                          Account not found in Evergreen
+                        </div>
+                      )}
+                    </div>
 
                     {/* Amount + currency */}
                     <div>
