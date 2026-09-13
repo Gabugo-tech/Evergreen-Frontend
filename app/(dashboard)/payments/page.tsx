@@ -131,7 +131,7 @@ export default function PaymentsPage() {
 
   // Account lookup state
   const [lookupLoading,  setLookupLoading]  = useState(false);
-  const [lookupResult,   setLookupResult]   = useState<{ name: string; found: boolean } | null>(null);
+  const [lookupResult,   setLookupResult]   = useState<{ name: string; accountType: string; currency: string; found: boolean } | null>(null);
   const lookupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { register, handleSubmit, formState: { errors }, reset, watch, setValue } = useForm<SendFormData>({
@@ -141,15 +141,16 @@ export default function PaymentsPage() {
   const transferType    = watch("transfer_type");
   const watchAmount     = watch("amount");
   const watchFromAccId  = watch("from_account_id");
-  const watchRecipientAccount = watch("recipient_account");
 
-  // Debounced account number lookup
+  // Debounced account number lookup — normalises spaces/dashes before querying
   const handleAccountNumberChange = useCallback((value: string) => {
-    // Clear previous timer
     if (lookupTimerRef.current) clearTimeout(lookupTimerRef.current);
 
-    // Reset if too short
-    if (value.length < 10) {
+    // Strip formatting so "384 726 1950" → "3847261950"
+    const clean = value.replace(/[\s\-]/g, "");
+
+    // Need at least 5 chars to bother querying
+    if (clean.length < 5) {
       setLookupResult(null);
       setLookupLoading(false);
       return;
@@ -160,17 +161,17 @@ export default function PaymentsPage() {
 
     lookupTimerRef.current = setTimeout(async () => {
       try {
-        const res = await accountsApi.lookup(value);
-        const name = res.data?.account_name;
-        setLookupResult({ name, found: true });
-        // Auto-fill the recipient name field
-        setValue("recipient_name", name, { shouldValidate: true });
+        const res = await accountsApi.lookup(clean);
+        const { account_name, account_type, currency } = res.data;
+        setLookupResult({ name: account_name, accountType: account_type, currency, found: true });
+        // Auto-fill recipient name
+        setValue("recipient_name", account_name, { shouldValidate: true });
       } catch {
-        setLookupResult({ name: "", found: false });
+        setLookupResult({ name: "", accountType: "", currency: "", found: false });
       } finally {
         setLookupLoading(false);
       }
-    }, 600); // 600ms debounce
+    }, 500);
   }, [setValue]);
 
   const loadData = useCallback(async () => {
@@ -330,20 +331,26 @@ export default function PaymentsPage() {
                       />
                       {/* Lookup status */}
                       {lookupLoading && (
-                        <div className="mt-1.5 flex items-center gap-2 text-xs text-slate-400">
+                        <div className="mt-2 flex items-center gap-2 text-xs text-slate-400">
                           <div className="h-3 w-3 rounded-full border-2 border-primary-400 border-t-transparent animate-spin" />
                           Fetching account details…
                         </div>
                       )}
                       {!lookupLoading && lookupResult?.found && (
-                        <div className="mt-1.5 flex items-center gap-2 text-xs text-green-500 dark:text-green-400">
-                          <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
-                          <span className="font-medium">{lookupResult.name}</span>
+                        <div className="mt-2 flex items-center gap-3 bg-green-500/10 border border-green-500/20 rounded-xl px-3 py-2">
+                          <CheckCircle2 className="h-4 w-4 text-green-400 flex-shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-green-400 truncate">{lookupResult.name}</p>
+                            <p className="text-xs text-slate-400 capitalize">
+                              {lookupResult.accountType} account · {lookupResult.currency}
+                            </p>
+                          </div>
                         </div>
                       )}
-                      {!lookupLoading && lookupResult?.found === false && watchRecipientAccount?.length >= 10 && (
-                        <div className="mt-1.5 text-xs text-red-400">
-                          Account not found in Evergreen
+                      {!lookupLoading && lookupResult?.found === false && (
+                        <div className="mt-2 flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2 text-xs text-red-400">
+                          <span className="h-4 w-4 flex-shrink-0 text-base leading-none">⚠</span>
+                          Account not found — double-check the number
                         </div>
                       )}
                     </div>

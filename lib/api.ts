@@ -109,8 +109,8 @@ export const accountsApi = {
   create: (body: unknown) =>
     node("/api/accounts", { method: "POST", body: JSON.stringify(body) }),
   lookup: (accountNumber: string) =>
-    node<{ data: { account_number: string; account_name: string } }>(
-      `/api/accounts/lookup/${encodeURIComponent(accountNumber)}`
+    node<{ data: { account_number: string; account_name: string; account_type: string; currency: string } }>(
+      `/api/accounts/lookup/${accountNumber.replace(/[\s\-]/g, "").toUpperCase()}`
     ),
 };
 
