@@ -125,14 +125,7 @@ export default function DashboardPage() {
                 >
                   <span className="text-white/50 text-xs font-medium uppercase tracking-wide">Acc No.</span>
                   <span className="text-white font-mono text-sm font-semibold tracking-widest">
-                    {/* Format: pure 10 digits → XXX XXX XXXX
-                                EG + 10 digits  → EG XXX XXX XXXX
-                                anything else   → as-is */}
-                    {/^\d{10}$/.test(primaryAccount.account_number)
-                      ? primaryAccount.account_number.replace(/(\d{3})(\d{3})(\d{4})/, "$1 $2 $3")
-                      : /^EG\d{10}$/.test(primaryAccount.account_number)
-                        ? primaryAccount.account_number.replace(/^(EG)(\d{3})(\d{3})(\d{4})$/, "$1 $2 $3 $4")
-                        : primaryAccount.account_number}
+                    {primaryAccount.account_number.replace(/(\d{3})(\d{3})(\d{4})/, "$1 $2 $3")}
                   </span>
                   {copied
                     ? <Check className="h-3.5 w-3.5 text-green-400 flex-shrink-0" />
