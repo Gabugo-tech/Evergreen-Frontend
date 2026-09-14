@@ -115,6 +115,12 @@ export const accountsApi = {
       `/api/accounts/lookup/${clean}`
     );
   },
+  resolveExternal: (accountNumber: string, bankCode: string) => {
+    const clean = accountNumber.replace(/\D/g, "");
+    return node<{ data: { account_number: string; account_name: string; bank_code: string; source: string } }>(
+      `/api/accounts/resolve?account_number=${clean}&bank_code=${encodeURIComponent(bankCode)}`
+    );
+  },
 };
 
 // ─── Transactions ─────────────────────────────────────────────────────────────

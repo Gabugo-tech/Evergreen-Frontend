@@ -42,7 +42,36 @@ const CURRENCIES = [
   { code: "AED", name: "UAE Dirham",       symbol: "د.إ", flag: "🇦🇪" },
 ];
 
-// ─── Send schema ────────────────────────────────────────────────────────────
+// ─── Nigerian banks ─────────────────────────────────────────────────────────
+const NIGERIAN_BANKS = [
+  { name: "Evergreen Bank",         code: "evergreen" },
+  { name: "Access Bank",            code: "044" },
+  { name: "Citibank Nigeria",       code: "023" },
+  { name: "Ecobank Nigeria",        code: "050" },
+  { name: "Fidelity Bank",          code: "070" },
+  { name: "First Bank of Nigeria",  code: "011" },
+  { name: "First City Monument Bank (FCMB)", code: "214" },
+  { name: "Globus Bank",            code: "00103" },
+  { name: "Guaranty Trust Bank",    code: "058" },
+  { name: "Heritage Bank",          code: "030" },
+  { name: "Keystone Bank",          code: "082" },
+  { name: "Kuda Bank",              code: "50211" },
+  { name: "Moniepoint MFB",         code: "50515" },
+  { name: "OPay Digital Services",  code: "100004" },
+  { name: "Palmpay",                code: "100033" },
+  { name: "Polaris Bank",           code: "076" },
+  { name: "Providus Bank",          code: "101" },
+  { name: "Stanbic IBTC Bank",      code: "221" },
+  { name: "Standard Chartered",     code: "068" },
+  { name: "Sterling Bank",          code: "232" },
+  { name: "Titan Trust Bank",       code: "102" },
+  { name: "Union Bank",             code: "032" },
+  { name: "United Bank for Africa (UBA)", code: "033" },
+  { name: "Unity Bank",             code: "215" },
+  { name: "VFD Microfinance Bank",  code: "566" },
+  { name: "Wema Bank",              code: "035" },
+  { name: "Zenith Bank",            code: "057" },
+];
 const sendSchema = z.object({
   from_account_id:   z.string().min(1, "Select an account"),
   recipient_name:    z.string().min(2, "Enter recipient name"),
@@ -133,6 +162,7 @@ export default function PaymentsPage() {
   const [lookupLoading,  setLookupLoading]  = useState(false);
   const [lookupResult,   setLookupResult]   = useState<{ name: string; accountType: string; currency: string; found: boolean } | null>(null);
   const lookupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [selectedBank,   setSelectedBank]   = useState("evergreen");
 
   const { register, handleSubmit, formState: { errors }, reset, watch, setValue } = useForm<SendFormData>({
     resolver: zodResolver(sendSchema),
@@ -161,18 +191,26 @@ export default function PaymentsPage() {
 
     lookupTimerRef.current = setTimeout(async () => {
       try {
-        const res = await accountsApi.lookup(clean);
-        const { account_name, account_type, currency } = res.data;
-        setLookupResult({ name: account_name, accountType: account_type, currency, found: true });
-        // Auto-fill recipient name
-        setValue("recipient_name", account_name, { shouldValidate: true });
+        if (selectedBank === "evergreen") {
+          // Internal Evergreen lookup
+          const res = await accountsApi.lookup(clean);
+          const { account_name, account_type, currency } = res.data;
+          setLookupResult({ name: account_name, accountType: account_type, currency, found: true });
+          setValue("recipient_name", account_name, { shouldValidate: true });
+        } else {
+          // External bank lookup via Paystack
+          const res = await accountsApi.resolveExternal(clean, selectedBank);
+          const { account_name } = res.data;
+          setLookupResult({ name: account_name, accountType: "bank account", currency: "NGN", found: true });
+          setValue("recipient_name", account_name, { shouldValidate: true });
+        }
       } catch {
         setLookupResult({ name: "", accountType: "", currency: "", found: false });
       } finally {
         setLookupLoading(false);
       }
     }, 500);
-  }, [setValue]);
+  }, [setValue, selectedBank]);
 
   const loadData = useCallback(async () => {
     setHistLoad(true);
@@ -199,6 +237,13 @@ export default function PaymentsPage() {
     setLookupLoading(false);
     if (lookupTimerRef.current) clearTimeout(lookupTimerRef.current);
   }, [transferType]);
+
+  // Clear lookup when bank selection changes
+  useEffect(() => {
+    setLookupResult(null);
+    setLookupLoading(false);
+    if (lookupTimerRef.current) clearTimeout(lookupTimerRef.current);
+  }, [selectedBank]);
 
   // Live FX preview
   const fromRate    = fxRates[fromCurrency] ?? 1;
@@ -330,8 +375,26 @@ export default function PaymentsPage() {
                       ))}
                     </div>
 
-                    {/* ── Step 1: Account number — always visible ── */}
+                    {/* ── Step 1: Bank selector + Account number ── */}
                     <div>
+                      {/* Bank selector */}
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                        Bank
+                      </label>
+                      <select
+                        className="input-base mb-3"
+                        value={selectedBank}
+                        onChange={(e) => {
+                          setSelectedBank(e.target.value);
+                          setValue("recipient_account", "");
+                          setValue("recipient_name", "");
+                        }}
+                      >
+                        {NIGERIAN_BANKS.map(b => (
+                          <option key={b.code} value={b.code}>{b.name}</option>
+                        ))}
+                      </select>
+
                       <Input
                         label={transferType === "international" ? "IBAN / Account Number" : "Account Number"}
                         placeholder={transferType === "international" ? "GB29 NWBK 6016 1331 9268 19" : "Enter 10-digit account number"}
