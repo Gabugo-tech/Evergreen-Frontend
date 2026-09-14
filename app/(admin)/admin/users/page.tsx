@@ -17,7 +17,7 @@ interface AdminUser {
 }
 
 async function fetchUsers(): Promise<AdminUser[]> {
-  const token = sessionStorage.getItem(ADMIN_TOKEN_KEY) ?? "";
+  const token = sessionStorage.getItem(ADMIN_TOKEN_KEY) ?? localStorage.getItem("eg_token") ?? "";
   const res = await fetch(`${NODE}/api/admin/users`, {
     headers: { Authorization: `Bearer ${token}` },
   });

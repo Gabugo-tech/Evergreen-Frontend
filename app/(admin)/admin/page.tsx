@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Users, CreditCard, TrendingUp, Activity, ArrowUpRight, RefreshCw } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import Skeleton from "@/components/ui/Skeleton";
@@ -11,88 +11,124 @@ const ADMIN_TOKEN_KEY = "eg_admin_token";
 const NODE = process.env.NEXT_PUBLIC_NODE_API_URL ?? "http://localhost:4000";
 
 interface Stats {
-  total_users: number;
+  total_users:        number;
   total_transactions: number;
-  total_volume: number;
-  active_visitors: number;
+  total_volume:       number;
+  total_visitors:     number;
 }
 
 interface RecentUser {
-  id: string;
-  full_name: string;
-  email: string;
-  account_type: string;
-  kyc_status: string;
-  created_at: string;
+  id: string; full_name: string; email: string;
+  account_type: string; kyc_status: string; created_at: string;
 }
 
 interface RecentTx {
-  id: string;
-  description: string;
-  amount: number;
-  currency: string;
-  status: string;
-  created_at: string;
+  id: string; description: string; amount: number;
+  currency: string; status: string; created_at: string;
+}
+
+// Always prefer sessionStorage token, fall back to localStorage
+function getAdminToken(): string {
+  if (typeof window === "undefined") return "";
+  return sessionStorage.getItem(ADMIN_TOKEN_KEY)
+      ?? localStorage.getItem("eg_token")
+      ?? "";
 }
 
 async function adminFetch<T>(path: string): Promise<T> {
-  const token = sessionStorage.getItem(ADMIN_TOKEN_KEY) ?? "";
+  const token = getAdminToken();
   const res = await fetch(`${NODE}${path}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.message);
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.message ?? `Request failed (${res.status})`);
   return json.data as T;
 }
 
 export default function AdminOverviewPage() {
-  const [stats,        setStats]       = useState<Stats | null>(null);
-  const [recentUsers,  setRecentUsers] = useState<RecentUser[]>([]);
-  const [recentTx,     setRecentTx]   = useState<RecentTx[]>([]);
-  const [loading,      setLoading]    = useState(true);
+  const [stats,       setStats]      = useState<Stats | null>(null);
+  const [recentUsers, setRecentUsers]= useState<RecentUser[]>([]);
+  const [recentTx,    setRecentTx]   = useState<RecentTx[]>([]);
+  const [loading,     setLoading]    = useState(true);
+  const [error,       setError]      = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      const [usersRes, txRes] = await Promise.allSettled([
+      const [statsRes, usersRes, txRes] = await Promise.allSettled([
+        adminFetch<Stats>("/api/admin/stats"),
         adminFetch<RecentUser[]>("/api/admin/users?limit=5"),
         adminFetch<RecentTx[]>("/api/admin/transactions?limit=5"),
       ]);
-      if (usersRes.status === "fulfilled") setRecentUsers(usersRes.value);
-      if (txRes.status   === "fulfilled") setRecentTx(txRes.value);
 
-      // Compute stats from results
-      setStats({
-        total_users:        usersRes.status === "fulfilled" ? usersRes.value.length : 0,
-        total_transactions: txRes.status    === "fulfilled" ? txRes.value.length    : 0,
-        total_volume:       txRes.status    === "fulfilled"
-          ? txRes.value.reduce((s, t) => s + Math.abs(t.amount), 0) : 0,
-        active_visitors: 0,
-      });
-    } catch {
-      // Silently show empty state
+      if (statsRes.status === "fulfilled") setStats(statsRes.value);
+      if (usersRes.status === "fulfilled") setRecentUsers(usersRes.value);
+      if (txRes.status    === "fulfilled") setRecentTx(txRes.value);
+
+      // If stats endpoint failed, set error
+      if (statsRes.status === "rejected") {
+        setError(statsRes.reason?.message ?? "Failed to load stats");
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
   const statCards = [
-    { label: "Total Users",         value: stats?.total_users ?? 0,          format: (v: number) => v.toLocaleString(),            icon: Users,       color: "text-primary-500",    bg: "bg-primary-500/10"    },
-    { label: "Total Transactions",  value: stats?.total_transactions ?? 0,    format: (v: number) => v.toLocaleString(),            icon: CreditCard,  color: "text-success-light",  bg: "bg-success-light/10"  },
-    { label: "Transaction Volume",  value: stats?.total_volume ?? 0,          format: (v: number) => formatCurrency(v, "USD"),      icon: TrendingUp,  color: "text-warning-light",  bg: "bg-warning-light/10"  },
-    { label: "Active Visitors",     value: stats?.active_visitors ?? 0,       format: (v: number) => v.toLocaleString(),            icon: Activity,    color: "text-violet-400",     bg: "bg-violet-400/10"     },
+    {
+      label:  "Total Users",
+      value:  stats?.total_users ?? 0,
+      format: (v: number) => v.toLocaleString(),
+      icon:   Users,
+      color:  "text-primary-500",
+      bg:     "bg-primary-500/10",
+    },
+    {
+      label:  "Total Transactions",
+      value:  stats?.total_transactions ?? 0,
+      format: (v: number) => v.toLocaleString(),
+      icon:   CreditCard,
+      color:  "text-success-light",
+      bg:     "bg-success-light/10",
+    },
+    {
+      label:  "Transaction Volume",
+      value:  stats?.total_volume ?? 0,
+      format: (v: number) => formatCurrency(v, "USD"),
+      icon:   TrendingUp,
+      color:  "text-warning-light",
+      bg:     "bg-warning-light/10",
+    },
+    {
+      label:  "Total Visitors",
+      value:  stats?.total_visitors ?? 0,
+      format: (v: number) => v.toLocaleString(),
+      icon:   Activity,
+      color:  "text-violet-400",
+      bg:     "bg-violet-400/10",
+    },
   ];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-white">Overview</h2>
-        <button onClick={load} className="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors">
-          <RefreshCw className="h-4 w-4" /> Refresh
+        <button
+          onClick={load}
+          className="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors"
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Refresh
         </button>
       </div>
+
+      {error && (
+        <div className="bg-red-900/20 border border-red-500/30 rounded-xl px-4 py-3 text-sm text-red-400">
+          {error} — check that the backend is running and your token is valid.
+        </div>
+      )}
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -130,7 +166,7 @@ export default function AdminOverviewPage() {
                   {recentUsers.map((u) => (
                     <div key={u.id} className="flex items-center gap-3 px-5 py-3 hover:bg-dark-muted/50 transition-colors">
                       <div className="h-9 w-9 rounded-full bg-gradient-blue flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                        {u.full_name.split(" ").map(n => n[0]).join("").slice(0,2)}
+                        {u.full_name.split(" ").map((n: string) => n[0]).join("").slice(0,2)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-white truncate">{u.full_name}</p>

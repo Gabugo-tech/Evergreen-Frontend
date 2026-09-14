@@ -18,7 +18,7 @@ interface AdminTx {
 }
 
 async function fetchAllTx(): Promise<AdminTx[]> {
-  const token = sessionStorage.getItem(ADMIN_TOKEN_KEY) ?? "";
+  const token = sessionStorage.getItem(ADMIN_TOKEN_KEY) ?? localStorage.getItem("eg_token") ?? "";
   const res = await fetch(`${NODE}/api/admin/transactions`, {
     headers: { Authorization: `Bearer ${token}` },
   });
