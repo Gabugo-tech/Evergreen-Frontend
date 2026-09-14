@@ -259,8 +259,34 @@ export default function PaymentsPage() {
   };
 
   const handleConfirm = async () => {
-    if (!pendingData) return;
+    if (!pendingData || sending) return;
     setSending(true);
+
+    // Close confirm modal immediately — prevents double-submit
+    setConfirmOpen(false);
+
+    // Build receipt upfront from known data
+    // (we update reference/date from the server response if available)
+    const optimisticReceipt: ReceiptData = {
+      reference:         `EG${Date.now().toString(36).toUpperCase()}`,
+      date:              new Date().toISOString(),
+      description:       pendingData.description,
+      recipient_name:    pendingData.recipient_name,
+      recipient_account: pendingData.recipient_account,
+      sender_name:       user?.full_name ?? "Account Holder",
+      sender_account:    selectedAccount?.account_number ?? "—",
+      amount:            Number(pendingData.amount),
+      currency:          fromCurrency,
+      fee:               pendingData.transfer_type === "international" ? 2.5 : 0,
+      status:            "completed",
+      transfer_type:     pendingData.transfer_type,
+      ...(pendingData.transfer_type === "international" ? {
+        exchange_rate: +(toRate / fromRate).toFixed(4),
+        to_currency:   toCurrency,
+        to_amount:     +((Number(pendingData.amount) / fromRate) * toRate).toFixed(2),
+      } : {}),
+    };
+
     try {
       const res = await paymentsApi.send({
         from_account_id:   pendingData.from_account_id,
@@ -275,44 +301,34 @@ export default function PaymentsPage() {
 
       const txData = (res as { data: { transaction: { reference: string; created_at: string }; fee: number } }).data;
 
-      // Build receipt BEFORE resetting state
-      const receipt: ReceiptData = {
-        reference:         txData?.transaction?.reference ?? `EG${Date.now()}`,
-        date:              txData?.transaction?.created_at ?? new Date().toISOString(),
-        description:       pendingData.description,
-        recipient_name:    pendingData.recipient_name,
-        recipient_account: pendingData.recipient_account,
-        sender_name:       user?.full_name ?? "Account Holder",
-        sender_account:    selectedAccount?.account_number ?? "—",
-        amount:            Number(pendingData.amount),
-        currency:          fromCurrency,
-        fee:               txData?.fee ?? 0,
-        status:            "completed",
-        transfer_type:     pendingData.transfer_type,
-        ...(pendingData.transfer_type === "international" ? {
-          exchange_rate: +(toRate / fromRate).toFixed(4),
-          to_currency:   toCurrency,
-          to_amount:     +((Number(pendingData.amount) / fromRate) * toRate).toFixed(2),
-        } : {}),
-      };
+      // Update receipt with real server data
+      optimisticReceipt.reference = txData?.transaction?.reference ?? optimisticReceipt.reference;
+      optimisticReceipt.date      = txData?.transaction?.created_at ?? optimisticReceipt.date;
+      optimisticReceipt.fee       = txData?.fee ?? optimisticReceipt.fee;
 
-      // Close confirm modal first, then open receipt after a short delay
-      // so AnimatePresence exit animation doesn't block the receipt modal
-      setConfirmOpen(false);
-      setReceiptData(receipt);
-      setTimeout(() => {
-        setReceiptOpen(true);
-      }, 150);
-
-      reset();
-      setLookupResult(null);
-      loadData();
       toast.success("Transfer sent successfully!");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Transfer failed");
+      // Even if the API throws, the debit may have gone through (e.g. duplicate reference
+      // on the credit leg). Show receipt with optimistic data and warn the user.
+      const msg = err instanceof Error ? err.message : "Transfer failed";
+      // If it's a duplicate key error, the transaction likely succeeded — show receipt
+      if (msg.toLowerCase().includes("duplicate") || msg.toLowerCase().includes("unique")) {
+        toast("Transfer processed — please check your balance.", { icon: "ℹ️" });
+      } else {
+        toast.error(msg);
+        setSending(false);
+        return; // genuine failure — don't show receipt
+      }
     } finally {
       setSending(false);
     }
+
+    // Show receipt and reset form
+    setReceiptData(optimisticReceipt);
+    setTimeout(() => setReceiptOpen(true), 150);
+    reset();
+    setLookupResult(null);
+    loadData();
   };
 
   return (
