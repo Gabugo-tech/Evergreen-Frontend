@@ -229,12 +229,11 @@ export default function PaymentsPage() {
       });
 
       const txData = (res as { data: { transaction: { reference: string; created_at: string }; fee: number } }).data;
-      setConfirmOpen(false);
 
-      // Build receipt
+      // Build receipt BEFORE resetting state
       const receipt: ReceiptData = {
-        reference:         txData.transaction?.reference ?? `EG${Date.now()}`,
-        date:              txData.transaction?.created_at ?? new Date().toISOString(),
+        reference:         txData?.transaction?.reference ?? `EG${Date.now()}`,
+        date:              txData?.transaction?.created_at ?? new Date().toISOString(),
         description:       pendingData.description,
         recipient_name:    pendingData.recipient_name,
         recipient_account: pendingData.recipient_account,
@@ -242,7 +241,7 @@ export default function PaymentsPage() {
         sender_account:    selectedAccount?.account_number ?? "—",
         amount:            Number(pendingData.amount),
         currency:          fromCurrency,
-        fee:               txData.fee ?? 0,
+        fee:               txData?.fee ?? 0,
         status:            "completed",
         transfer_type:     pendingData.transfer_type,
         ...(pendingData.transfer_type === "international" ? {
@@ -251,8 +250,15 @@ export default function PaymentsPage() {
           to_amount:     +((Number(pendingData.amount) / fromRate) * toRate).toFixed(2),
         } : {}),
       };
+
+      // Close confirm modal first, then open receipt after a short delay
+      // so AnimatePresence exit animation doesn't block the receipt modal
+      setConfirmOpen(false);
       setReceiptData(receipt);
-      setReceiptOpen(true);
+      setTimeout(() => {
+        setReceiptOpen(true);
+      }, 150);
+
       reset();
       setLookupResult(null);
       loadData();
@@ -569,7 +575,10 @@ export default function PaymentsPage() {
       {/* Receipt Modal */}
       <Modal open={receiptOpen} onClose={() => setReceiptOpen(false)} title="" showClose={false} size="lg">
         {receiptData && (
-          <TransactionReceipt data={receiptData} onClose={() => setReceiptOpen(false)} />
+          <TransactionReceipt data={receiptData} onClose={() => {
+            setReceiptOpen(false);
+            setReceiptData(null);
+          }} />
         )}
       </Modal>
     </div>
