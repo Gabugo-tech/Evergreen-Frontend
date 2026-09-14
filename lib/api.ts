@@ -108,10 +108,13 @@ export const accountsApi = {
   balance: (id: string) => node<{ data: unknown }>(`/api/accounts/${id}/balance`),
   create: (body: unknown) =>
     node("/api/accounts", { method: "POST", body: JSON.stringify(body) }),
-  lookup: (accountNumber: string) =>
-    node<{ data: { account_number: string; account_name: string; account_type: string; currency: string } }>(
-      `/api/accounts/lookup/${accountNumber.replace(/[\s\-]/g, "").toUpperCase()}`
-    ),
+  lookup: (accountNumber: string) => {
+    // Strip all non-digit characters (spaces, dashes, letters like EG prefix)
+    const clean = accountNumber.replace(/\D/g, "");
+    return node<{ data: { account_number: string; account_name: string; account_type: string; currency: string } }>(
+      `/api/accounts/lookup/${clean}`
+    );
+  },
 };
 
 // ─── Transactions ─────────────────────────────────────────────────────────────

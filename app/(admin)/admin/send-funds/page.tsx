@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -80,7 +80,12 @@ export default function AdminSendFundsPage() {
   const [pendingData,   setPendingData]   = useState<ConfirmData | null>(null);
   const [lastTransfer,  setLastTransfer]  = useState<TransferRecord | null>(null);
 
-  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<FormData>({
+  // Account lookup state
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupResult,  setLookupResult]  = useState<{ name: string; found: boolean } | null>(null);
+  const lookupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { currency: "USD" },
   });
@@ -109,6 +114,30 @@ export default function AdminSendFundsPage() {
       // Non-critical
     }
   }, []);
+
+  // Debounced account number lookup using the admin token
+  const handleAccountNumberChange = useCallback((value: string) => {
+    if (lookupTimer.current) clearTimeout(lookupTimer.current);
+    const clean = value.replace(/\D/g, "");
+    if (clean.length < 5) {
+      setLookupResult(null);
+      setLookupLoading(false);
+      return;
+    }
+    setLookupLoading(true);
+    setLookupResult(null);
+    lookupTimer.current = setTimeout(async () => {
+      try {
+        const res = await adminFetch<{ account_number: string; account_name: string }>(`/api/accounts/lookup/${clean}`);
+        setLookupResult({ name: res.account_name, found: true });
+        setValue("recipient_name", res.account_name);
+      } catch {
+        setLookupResult({ name: "", found: false });
+      } finally {
+        setLookupLoading(false);
+      }
+    }, 500);
+  }, [setValue]);
 
   useEffect(() => {
     loadAccount();
@@ -154,6 +183,7 @@ export default function AdminSendFundsPage() {
       setConfirmOpen(false);
       setSuccessOpen(true);
       reset();
+      setLookupResult(null);
       await loadAccount();
       await loadTransfers();
     } catch (err) {
@@ -229,13 +259,34 @@ export default function AdminSendFundsPage() {
             <CardHeader><CardTitle>Send Funds to User</CardTitle></CardHeader>
 
             <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
-              <Input
-                label="Recipient Account Number"
-                placeholder="e.g. EG4729183056"
-                leftElement={<Hash className="h-4 w-4" />}
-                error={errors.to_account_number?.message}
-                {...register("to_account_number")}
-              />
+              <div>
+                <Input
+                  label="Recipient Account Number"
+                  placeholder="e.g. 9376471886"
+                  leftElement={<Hash className="h-4 w-4" />}
+                  error={errors.to_account_number?.message}
+                  {...register("to_account_number", {
+                    onChange: (e) => handleAccountNumberChange(e.target.value),
+                  })}
+                />
+                {lookupLoading && (
+                  <div className="mt-1.5 flex items-center gap-2 text-xs text-slate-400">
+                    <div className="h-3 w-3 rounded-full border-2 border-primary-400 border-t-transparent animate-spin" />
+                    Fetching account details…
+                  </div>
+                )}
+                {!lookupLoading && lookupResult?.found && (
+                  <div className="mt-1.5 flex items-center gap-2 bg-green-500/10 border border-green-500/20 rounded-xl px-3 py-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-400 flex-shrink-0" />
+                    <span className="text-sm font-semibold text-green-400">{lookupResult.name}</span>
+                  </div>
+                )}
+                {!lookupLoading && lookupResult?.found === false && (
+                  <div className="mt-1.5 flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2 text-xs text-red-400">
+                    <span>⚠</span> Account not found — double-check the number
+                  </div>
+                )}
+              </div>
               <Input
                 label="Recipient Full Name"
                 placeholder="Full name of the account holder"
