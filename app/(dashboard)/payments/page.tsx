@@ -42,36 +42,258 @@ const CURRENCIES = [
   { code: "AED", name: "UAE Dirham",       symbol: "د.إ", flag: "🇦🇪" },
 ];
 
-// ─── Nigerian banks ─────────────────────────────────────────────────────────
-const NIGERIAN_BANKS = [
-  { name: "Evergreen Bank",         code: "evergreen" },
-  { name: "Access Bank",            code: "044" },
-  { name: "Citibank Nigeria",       code: "023" },
-  { name: "Ecobank Nigeria",        code: "050" },
-  { name: "Fidelity Bank",          code: "070" },
-  { name: "First Bank of Nigeria",  code: "011" },
-  { name: "First City Monument Bank (FCMB)", code: "214" },
-  { name: "Globus Bank",            code: "00103" },
-  { name: "Guaranty Trust Bank",    code: "058" },
-  { name: "Heritage Bank",          code: "030" },
-  { name: "Keystone Bank",          code: "082" },
-  { name: "Kuda Bank",              code: "50211" },
-  { name: "Moniepoint MFB",         code: "50515" },
-  { name: "OPay Digital Services",  code: "100004" },
-  { name: "Palmpay",                code: "100033" },
-  { name: "Polaris Bank",           code: "076" },
-  { name: "Providus Bank",          code: "101" },
-  { name: "Stanbic IBTC Bank",      code: "221" },
-  { name: "Standard Chartered",     code: "068" },
-  { name: "Sterling Bank",          code: "232" },
-  { name: "Titan Trust Bank",       code: "102" },
-  { name: "Union Bank",             code: "032" },
-  { name: "United Bank for Africa (UBA)", code: "033" },
-  { name: "Unity Bank",             code: "215" },
-  { name: "VFD Microfinance Bank",  code: "566" },
-  { name: "Wema Bank",              code: "035" },
-  { name: "Zenith Bank",            code: "057" },
-];
+// ─── World banks organised by country ──────────────────────────────────────
+// Providers: NG=Paystack, GH/KE/ZA/TZ/UG/RW/ZM/CM/SN/CI=Flutterwave, others=manual
+export const WORLD_BANKS: Record<string, { flag: string; name: string; currency: string; canAutoResolve: boolean; banks: { name: string; code: string }[] }> = {
+  NG: {
+    flag: "🇳🇬", name: "Nigeria", currency: "NGN", canAutoResolve: true,
+    banks: [
+      { name: "Evergreen Bank",                    code: "evergreen" },
+      { name: "Access Bank",                       code: "044" },
+      { name: "Citibank Nigeria",                  code: "023" },
+      { name: "Ecobank Nigeria",                   code: "050" },
+      { name: "Fidelity Bank",                     code: "070" },
+      { name: "First Bank of Nigeria",             code: "011" },
+      { name: "FCMB",                              code: "214" },
+      { name: "Guaranty Trust Bank (GTBank)",      code: "058" },
+      { name: "Keystone Bank",                     code: "082" },
+      { name: "Kuda Bank",                         code: "50211" },
+      { name: "Moniepoint MFB",                    code: "50515" },
+      { name: "OPay",                              code: "100004" },
+      { name: "Palmpay",                           code: "100033" },
+      { name: "Polaris Bank",                      code: "076" },
+      { name: "Stanbic IBTC Bank",                 code: "221" },
+      { name: "Sterling Bank",                     code: "232" },
+      { name: "UBA",                               code: "033" },
+      { name: "Union Bank",                        code: "032" },
+      { name: "Wema Bank",                         code: "035" },
+      { name: "Zenith Bank",                       code: "057" },
+    ],
+  },
+  GH: {
+    flag: "🇬🇭", name: "Ghana", currency: "GHS", canAutoResolve: true,
+    banks: [
+      { name: "Absa Bank Ghana",       code: "GH270202" },
+      { name: "Access Bank Ghana",     code: "GH280101" },
+      { name: "Ecobank Ghana",         code: "GH300101" },
+      { name: "Fidelity Bank Ghana",   code: "GH040101" },
+      { name: "GCB Bank",              code: "GH020101" },
+      { name: "Guaranty Trust Ghana",  code: "GH230101" },
+      { name: "MTN Mobile Money",      code: "GHM" },
+      { name: "Standard Chartered GH", code: "GH020201" },
+      { name: "Stanbic Bank Ghana",    code: "GH190101" },
+      { name: "Zenith Bank Ghana",     code: "GH180101" },
+    ],
+  },
+  KE: {
+    flag: "🇰🇪", name: "Kenya", currency: "KES", canAutoResolve: true,
+    banks: [
+      { name: "Absa Bank Kenya",       code: "ABSA" },
+      { name: "Cooperative Bank",      code: "CO-OP" },
+      { name: "DTB Bank",              code: "DTB" },
+      { name: "Equity Bank",           code: "EQUITY" },
+      { name: "Family Bank",           code: "FAMILY" },
+      { name: "I&M Bank",              code: "IM" },
+      { name: "KCB Bank",              code: "KCB" },
+      { name: "M-Pesa (Safaricom)",    code: "MPS" },
+      { name: "NCBA Bank",             code: "NCBA" },
+      { name: "Standard Chartered KE", code: "SCBKE" },
+    ],
+  },
+  ZA: {
+    flag: "🇿🇦", name: "South Africa", currency: "ZAR", canAutoResolve: true,
+    banks: [
+      { name: "Absa Bank",             code: "632005" },
+      { name: "African Bank",          code: "430000" },
+      { name: "Capitec Bank",          code: "470010" },
+      { name: "Discovery Bank",        code: "679000" },
+      { name: "FNB",                   code: "250655" },
+      { name: "Investec",              code: "580105" },
+      { name: "Nedbank",               code: "198765" },
+      { name: "Standard Bank",         code: "051001" },
+      { name: "TymeBank",              code: "678910" },
+    ],
+  },
+  TZ: {
+    flag: "🇹🇿", name: "Tanzania", currency: "TZS", canAutoResolve: true,
+    banks: [
+      { name: "CRDB Bank",             code: "CRDB" },
+      { name: "NMB Bank",              code: "NMB" },
+      { name: "Stanbic Tanzania",      code: "STANBIC" },
+      { name: "Standard Chartered TZ", code: "SCBTZ" },
+      { name: "Vodacom M-Pesa",        code: "MPS" },
+    ],
+  },
+  UG: {
+    flag: "🇺🇬", name: "Uganda", currency: "UGX", canAutoResolve: true,
+    banks: [
+      { name: "Absa Uganda",           code: "ABSA" },
+      { name: "Centenary Bank",        code: "CENTY" },
+      { name: "DFCU Bank",             code: "DFCU" },
+      { name: "MTN Mobile Money",      code: "MPS" },
+      { name: "Stanbic Uganda",        code: "STANBIC" },
+    ],
+  },
+  // ── Countries without auto-resolution (manual name entry) ──────────────
+  US: {
+    flag: "🇺🇸", name: "United States", currency: "USD", canAutoResolve: false,
+    banks: [
+      { name: "Bank of America",       code: "BOFA" },
+      { name: "Chase Bank",            code: "CHASE" },
+      { name: "Citibank",              code: "CITI" },
+      { name: "Wells Fargo",           code: "WF" },
+      { name: "Goldman Sachs",         code: "GS" },
+      { name: "JPMorgan",              code: "JPM" },
+      { name: "US Bancorp",            code: "USB" },
+      { name: "Capital One",           code: "COF" },
+    ],
+  },
+  GB: {
+    flag: "🇬🇧", name: "United Kingdom", currency: "GBP", canAutoResolve: false,
+    banks: [
+      { name: "Barclays",              code: "BARCGB22" },
+      { name: "HSBC UK",               code: "HBUKGB4B" },
+      { name: "Lloyds Bank",           code: "LOYDGB21" },
+      { name: "Metro Bank",            code: "MYMBGB2L" },
+      { name: "Monzo",                 code: "MONZGB2L" },
+      { name: "NatWest",               code: "NWBKGB2L" },
+      { name: "Revolut",               code: "REVOGB21" },
+      { name: "Starling Bank",         code: "SRLGGB3L" },
+    ],
+  },
+  KR: {
+    flag: "🇰🇷", name: "South Korea", currency: "KRW", canAutoResolve: false,
+    banks: [
+      { name: "KB Kookmin Bank",       code: "004" },
+      { name: "KEB Hana Bank",         code: "081" },
+      { name: "NH NongHyup Bank",      code: "011" },
+      { name: "Kakao Bank",            code: "090" },
+      { name: "K Bank",                code: "089" },
+      { name: "Shinhan Bank",          code: "088" },
+      { name: "IBK",                   code: "003" },
+      { name: "Woori Bank",            code: "020" },
+      { name: "Toss Bank",             code: "092" },
+    ],
+  },
+  DE: {
+    flag: "🇩🇪", name: "Germany", currency: "EUR", canAutoResolve: false,
+    banks: [
+      { name: "Commerzbank",           code: "COBADEFF" },
+      { name: "Deutsche Bank",         code: "DEUTDEDB" },
+      { name: "DZ Bank",               code: "GENODEFF" },
+      { name: "ING Germany",           code: "INGDDEFF" },
+      { name: "N26",                   code: "NTSBDEB1" },
+      { name: "Sparkasse",             code: "BELADEBE" },
+    ],
+  },
+  FR: {
+    flag: "🇫🇷", name: "France", currency: "EUR", canAutoResolve: false,
+    banks: [
+      { name: "BNP Paribas",           code: "BNPAFRPP" },
+      { name: "Crédit Agricole",       code: "AGRIFRPP" },
+      { name: "La Banque Postale",     code: "PSSTFRPP" },
+      { name: "Lydia",                 code: "LYDIFRPP" },
+      { name: "Société Générale",      code: "SOGEFRPP" },
+      { name: "Revolut FR",            code: "REVOFR21" },
+    ],
+  },
+  JP: {
+    flag: "🇯🇵", name: "Japan", currency: "JPY", canAutoResolve: false,
+    banks: [
+      { name: "MUFG Bank",             code: "0005" },
+      { name: "Mizuho Bank",           code: "0001" },
+      { name: "PayPay Bank",           code: "0033" },
+      { name: "Rakuten Bank",          code: "0036" },
+      { name: "Resona Bank",           code: "0010" },
+      { name: "SMBC",                  code: "0009" },
+    ],
+  },
+  CN: {
+    flag: "🇨🇳", name: "China", currency: "CNY", canAutoResolve: false,
+    banks: [
+      { name: "Agricultural Bank",     code: "ABC" },
+      { name: "Alipay",                code: "ALIPAY" },
+      { name: "Bank of China",         code: "BOC" },
+      { name: "CCB",                   code: "CCB" },
+      { name: "ICBC",                  code: "ICBC" },
+      { name: "WeChat Pay",            code: "WECHAT" },
+    ],
+  },
+  IN: {
+    flag: "🇮🇳", name: "India", currency: "INR", canAutoResolve: false,
+    banks: [
+      { name: "Axis Bank",             code: "AXIS" },
+      { name: "HDFC Bank",             code: "HDFC" },
+      { name: "ICICI Bank",            code: "ICICI" },
+      { name: "Kotak Mahindra",        code: "KOTAK" },
+      { name: "Paytm",                 code: "PAYTM" },
+      { name: "PhonePe",               code: "PHONEPE" },
+      { name: "SBI",                   code: "SBI" },
+    ],
+  },
+  AE: {
+    flag: "🇦🇪", name: "UAE", currency: "AED", canAutoResolve: false,
+    banks: [
+      { name: "Abu Dhabi Commercial",  code: "ADCB" },
+      { name: "Emirates NBD",          code: "EBILAEAD" },
+      { name: "FAB",                   code: "NBADAEAA" },
+      { name: "Mashreq Bank",          code: "BOMLAEAD" },
+      { name: "Wio Bank",              code: "WIO" },
+    ],
+  },
+  CA: {
+    flag: "🇨🇦", name: "Canada", currency: "CAD", canAutoResolve: false,
+    banks: [
+      { name: "BMO",                   code: "BMO" },
+      { name: "CIBC",                  code: "CIBC" },
+      { name: "RBC",                   code: "RBC" },
+      { name: "Scotiabank",            code: "SCOT" },
+      { name: "TD Bank",               code: "TD" },
+    ],
+  },
+  AU: {
+    flag: "🇦🇺", name: "Australia", currency: "AUD", canAutoResolve: false,
+    banks: [
+      { name: "ANZ",                   code: "ANZ" },
+      { name: "CommBank",              code: "CBA" },
+      { name: "NAB",                   code: "NAB" },
+      { name: "Westpac",               code: "WBC" },
+    ],
+  },
+  BR: {
+    flag: "🇧🇷", name: "Brazil", currency: "BRL", canAutoResolve: false,
+    banks: [
+      { name: "Banco do Brasil",       code: "001" },
+      { name: "Bradesco",              code: "237" },
+      { name: "Itaú",                  code: "341" },
+      { name: "Nubank",                code: "260" },
+      { name: "Pix (any bank)",        code: "PIX" },
+    ],
+  },
+  SG: {
+    flag: "🇸🇬", name: "Singapore", currency: "SGD", canAutoResolve: false,
+    banks: [
+      { name: "DBS Bank",              code: "DBS" },
+      { name: "OCBC",                  code: "OCBC" },
+      { name: "Revolut SG",            code: "REVSG" },
+      { name: "UOB",                   code: "UOB" },
+    ],
+  },
+};
+
+// Sorted country list for the selector
+const COUNTRY_LIST = Object.entries(WORLD_BANKS).map(([code, data]) => ({
+  code,
+  flag: data.flag,
+  name: data.name,
+  currency: data.currency,
+  canAutoResolve: data.canAutoResolve,
+})).sort((a, b) => {
+  // Nigeria first (home country), then alphabetical
+  if (a.code === "NG") return -1;
+  if (b.code === "NG") return 1;
+  return a.name.localeCompare(b.name);
+});
 const sendSchema = z.object({
   from_account_id:   z.string().min(1, "Select an account"),
   recipient_name:    z.string().min(2, "Enter recipient name"),
@@ -159,10 +381,13 @@ export default function PaymentsPage() {
   const [sending,       setSending]     = useState(false);
 
   // Account lookup state
-  const [lookupLoading,  setLookupLoading]  = useState(false);
-  const [lookupResult,   setLookupResult]   = useState<{ name: string; accountType: string; currency: string; found: boolean } | null>(null);
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupResult,  setLookupResult]  = useState<{ name: string; accountType: string; currency: string; found: boolean; canResolve?: boolean; message?: string } | null>(null);
   const lookupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [selectedBank,   setSelectedBank]   = useState("evergreen");
+  const [selectedCountry, setSelectedCountry] = useState("NG");
+  const [selectedBank,    setSelectedBank]    = useState("evergreen");
+
+  const currentCountryData = WORLD_BANKS[selectedCountry];
 
   const { register, handleSubmit, formState: { errors }, reset, watch, setValue } = useForm<SendFormData>({
     resolver: zodResolver(sendSchema),
@@ -195,22 +420,27 @@ export default function PaymentsPage() {
           // Internal Evergreen lookup
           const res = await accountsApi.lookup(clean);
           const { account_name, account_type, currency } = res.data;
-          setLookupResult({ name: account_name, accountType: account_type, currency, found: true });
+          setLookupResult({ name: account_name, accountType: account_type, currency, found: true, canResolve: true });
           setValue("recipient_name", account_name, { shouldValidate: true });
         } else {
-          // External bank lookup via Paystack
-          const res = await accountsApi.resolveExternal(clean, selectedBank);
-          const { account_name } = res.data;
-          setLookupResult({ name: account_name, accountType: "bank account", currency: "NGN", found: true });
-          setValue("recipient_name", account_name, { shouldValidate: true });
+          // External bank lookup
+          const res = await accountsApi.resolveExternal(clean, selectedBank, selectedCountry);
+          const { account_name, can_resolve, message } = res.data;
+          if (can_resolve && account_name) {
+            setLookupResult({ name: account_name, accountType: "bank account", currency: currentCountryData?.currency ?? "USD", found: true, canResolve: true });
+            setValue("recipient_name", account_name, { shouldValidate: true });
+          } else {
+            // Country doesn't support auto-resolve — prompt manual entry
+            setLookupResult({ name: "", accountType: "", currency: "", found: false, canResolve: false, message: message ?? "Manual entry required" });
+          }
         }
       } catch {
-        setLookupResult({ name: "", accountType: "", currency: "", found: false });
+        setLookupResult({ name: "", accountType: "", currency: "", found: false, canResolve: true });
       } finally {
         setLookupLoading(false);
       }
     }, 500);
-  }, [setValue, selectedBank]);
+  }, [setValue, selectedBank, selectedCountry, currentCountryData]);
 
   const loadData = useCallback(async () => {
     setHistLoad(true);
@@ -243,7 +473,7 @@ export default function PaymentsPage() {
     setLookupResult(null);
     setLookupLoading(false);
     if (lookupTimerRef.current) clearTimeout(lookupTimerRef.current);
-  }, [selectedBank]);
+  }, [selectedBank, selectedCountry]);
 
   // Live FX preview
   const fromRate    = fxRates[fromCurrency] ?? 1;
@@ -393,6 +623,30 @@ export default function PaymentsPage() {
 
                     {/* ── Step 1: Bank selector + Account number ── */}
                     <div>
+                      {/* Country selector */}
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                        Country
+                      </label>
+                      <select
+                        className="input-base mb-3"
+                        value={selectedCountry}
+                        onChange={(e) => {
+                          const newCountry = e.target.value;
+                          setSelectedCountry(newCountry);
+                          // Default to first bank of new country
+                          const firstBank = WORLD_BANKS[newCountry]?.banks[0]?.code ?? "evergreen";
+                          setSelectedBank(firstBank);
+                          setValue("recipient_account", "");
+                          setValue("recipient_name", "");
+                        }}
+                      >
+                        {COUNTRY_LIST.map(c => (
+                          <option key={c.code} value={c.code}>
+                            {c.flag} {c.name}
+                          </option>
+                        ))}
+                      </select>
+
                       {/* Bank selector */}
                       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
                         Bank
@@ -406,14 +660,26 @@ export default function PaymentsPage() {
                           setValue("recipient_name", "");
                         }}
                       >
-                        {NIGERIAN_BANKS.map(b => (
+                        {(WORLD_BANKS[selectedCountry]?.banks ?? []).map(b => (
                           <option key={b.code} value={b.code}>{b.name}</option>
                         ))}
                       </select>
 
+                      {/* Auto-resolve availability notice */}
+                      {!currentCountryData?.canAutoResolve && selectedBank !== "evergreen" && (
+                        <div className="mb-3 flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2 text-xs text-amber-400">
+                          <span className="text-base leading-none mt-0.5">ℹ</span>
+                          <span>Auto name-lookup is not available for {currentCountryData?.name ?? "this country"}. Please enter the recipient name manually.</span>
+                        </div>
+                      )}
+
                       <Input
                         label={transferType === "international" ? "IBAN / Account Number" : "Account Number"}
-                        placeholder={transferType === "international" ? "GB29 NWBK 6016 1331 9268 19" : "Enter 10-digit account number"}
+                        placeholder={
+                          selectedCountry === "NG" ? "Enter 10-digit account number" :
+                          transferType === "international" ? "IBAN or local account number" :
+                          "Enter account number"
+                        }
                         error={errors.recipient_account?.message}
                         {...register("recipient_account", {
                           onChange: (e) => handleAccountNumberChange(e.target.value),
@@ -437,12 +703,20 @@ export default function PaymentsPage() {
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-semibold text-green-400 truncate">{lookupResult.name}</p>
                             <p className="text-xs text-slate-400 capitalize">
-                              {lookupResult.accountType} account · {lookupResult.currency}
+                              {lookupResult.accountType} · {lookupResult.currency}
                             </p>
                           </div>
                         </motion.div>
                       )}
-                      {!lookupLoading && lookupResult?.found === false && (
+                      {/* Can't auto-resolve — show manual entry prompt */}
+                      {!lookupLoading && lookupResult?.found === false && lookupResult?.canResolve === false && (
+                        <div className="mt-2 flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2 text-xs text-amber-400">
+                          <span className="text-base leading-none mt-0.5">ℹ</span>
+                          <span>{lookupResult.message ?? "Enter the recipient name manually below."}</span>
+                        </div>
+                      )}
+                      {/* Account not found (lookup attempted but failed) */}
+                      {!lookupLoading && lookupResult?.found === false && lookupResult?.canResolve !== false && (
                         <div className="mt-2 flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2 text-xs text-red-400">
                           <span className="text-base leading-none">⚠</span>
                           Account not found — double-check the number
@@ -450,9 +724,9 @@ export default function PaymentsPage() {
                       )}
                     </div>
 
-                    {/* ── Step 2: Rest of the form — only shown after successful lookup ── */}
+                    {/* ── Step 2: Rest of form — shown after successful lookup OR manual-entry country ── */}
                     <AnimatePresence>
-                      {lookupResult?.found && (
+                      {(lookupResult?.found || lookupResult?.canResolve === false) && (
                         <motion.div
                           key="transfer-fields"
                           initial={{ opacity: 0, height: 0 }}
@@ -514,7 +788,7 @@ export default function PaymentsPage() {
                     {!lookupResult && !lookupLoading && (
                       <div className="flex items-center gap-3 rounded-xl border border-dashed border-dark-border px-4 py-4 text-sm text-slate-400">
                         <Search className="h-4 w-4 flex-shrink-0 text-slate-500" />
-                        Enter the recipient's account number above to continue
+                        Enter the recipient&apos;s account number above to continue
                       </div>
                     )}
                   </form>
