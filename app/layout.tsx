@@ -13,7 +13,9 @@ export const metadata: Metadata = {
   keywords: ["fintech", "banking", "investing", "portfolio", "payments"],
   authors: [{ name: "Evergreen Financial" }],
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/icon", type: "image/png", sizes: "32x32" },
+    ],
     apple: "/apple-touch-icon.png",
   },
   openGraph: {
