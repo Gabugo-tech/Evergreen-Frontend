@@ -98,6 +98,22 @@ export const usersApi = {
   updateProfile: (body: unknown) =>
     node("/api/users/me", { method: "PATCH", body: JSON.stringify(body) }),
   kycStatus: () => node<{ data: { kyc_status: string } }>("/api/users/me/kyc"),
+  uploadAvatar: (file: File) => {
+    const form = new FormData();
+    form.append("avatar", file);
+    const token = typeof window !== "undefined" ? localStorage.getItem("eg_token") ?? "" : "";
+    const base  = process.env.NEXT_PUBLIC_NODE_API_URL ?? "http://localhost:4000";
+    // Use raw fetch — no Content-Type header so browser sets multipart boundary automatically
+    return fetch(`${base}/api/users/me/avatar`, {
+      method:  "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body:    form,
+    }).then(async (res) => {
+      const json = await res.json().catch(() => ({ message: "Server error" }));
+      if (!res.ok) throw new Error(json.message ?? `Upload failed (${res.status})`);
+      return json as { data: unknown };
+    });
+  },
 };
 
 // ─── Accounts ────────────────────────────────────────────────────────────────

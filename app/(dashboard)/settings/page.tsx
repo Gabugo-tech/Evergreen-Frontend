@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   User, Lock, Bell, Shield, CreditCard,
   Camera, Save, Eye, EyeOff, CheckCircle2,
@@ -66,14 +66,67 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: () =
 // ─── Profile tab ─────────────────────────────────────────────────────────────
 function ProfileTab() {
   const { user, refreshUser } = useAuth();
-  const [saved,     setSaved]     = useState(false);
-  const [saving,    setSaving]    = useState(false);
-  const [fullName,  setFullName]  = useState(user?.full_name ?? "");
-  const [phone,     setPhone]     = useState(user?.phone ?? "");
+  const [saved,        setSaved]        = useState(false);
+  const [saving,       setSaving]       = useState(false);
+  const [fullName,     setFullName]     = useState(user?.full_name ?? "");
+  const [phone,        setPhone]        = useState(user?.phone ?? "");
+  const [avatarPreview,setAvatarPreview]= useState<string | null>(null);
+  const [uploading,    setUploading]    = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const nameParts   = fullName.trim().split(" ");
-  const firstName   = nameParts[0] ?? "";
-  const lastName    = nameParts.slice(1).join(" ");
+  const nameParts = fullName.trim().split(" ");
+  const firstName = nameParts[0] ?? "";
+  const lastName  = nameParts.slice(1).join(" ");
+
+  // Pick file → preview immediately, then upload
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate client-side: max 5 MB, images only
+    if (!file.type.startsWith("image/")) {
+      toast.error("Only image files are allowed");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be under 5 MB");
+      return;
+    }
+
+    // Show preview immediately
+    const reader = new FileReader();
+    reader.onload = (ev) => setAvatarPreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+
+    // Upload
+    setUploading(true);
+    try {
+      await usersApi.uploadAvatar(file);
+      await refreshUser();
+      toast.success("Profile photo updated");
+    } catch (err) {
+      setAvatarPreview(null);
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      // Reset input so same file can be re-selected
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    setUploading(true);
+    try {
+      await usersApi.updateProfile({ avatar_url: null });
+      await refreshUser();
+      setAvatarPreview(null);
+      toast.success("Profile photo removed");
+    } catch {
+      toast.error("Failed to remove photo");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const save = async () => {
     setSaving(true);
@@ -90,6 +143,8 @@ function ProfileTab() {
     }
   };
 
+  const displaySrc = avatarPreview ?? user?.avatar_url;
+
   return (
     <div className="space-y-6">
       {/* Avatar */}
@@ -97,18 +152,54 @@ function ProfileTab() {
         <CardHeader><CardTitle>Profile Photo</CardTitle></CardHeader>
         <div className="flex items-center gap-5">
           <div className="relative">
-            <Avatar name={user?.full_name ?? "U"} src={user?.avatar_url} size="xl" />
-            <button className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-primary-600 text-white flex items-center justify-center shadow-md hover:bg-primary-700 transition-colors" aria-label="Change photo">
-              <Camera className="h-3.5 w-3.5" />
+            <Avatar name={user?.full_name ?? "U"} src={displaySrc} size="xl" />
+            {/* Camera overlay */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-primary-600 text-white flex items-center justify-center shadow-md hover:bg-primary-700 transition-colors disabled:opacity-60"
+              aria-label="Change photo"
+            >
+              {uploading
+                ? <div className="h-3 w-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                : <Camera className="h-3.5 w-3.5" />}
             </button>
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileChange}
+            />
           </div>
           <div>
             <p className="text-sm font-medium text-slate-900 dark:text-white">{user?.full_name ?? "—"}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 capitalize">{user?.account_type ?? "Personal"} account · {user?.kyc_status ?? "pending"}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 capitalize">
+              {user?.account_type ?? "Personal"} account · {user?.kyc_status ?? "pending"}
+            </p>
             <div className="flex items-center gap-2 mt-2">
-              <Button variant="secondary" size="xs">Upload Photo</Button>
-              <Button variant="ghost" size="xs" className="text-danger-light">Remove</Button>
+              <Button
+                variant="secondary"
+                size="xs"
+                loading={uploading}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {uploading ? "Uploading…" : "Upload Photo"}
+              </Button>
+              {(displaySrc) && (
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  className="text-danger-light"
+                  onClick={handleRemovePhoto}
+                  disabled={uploading}
+                >
+                  Remove
+                </Button>
+              )}
             </div>
+            <p className="text-xs text-slate-400 mt-1.5">JPG, PNG or WebP · max 5 MB</p>
           </div>
         </div>
       </Card>

@@ -416,21 +416,21 @@ export default function PaymentsPage() {
 
     lookupTimerRef.current = setTimeout(async () => {
       try {
-        if (selectedBank === "evergreen") {
-          // Internal Evergreen lookup
+        // Local transfer always uses Evergreen internal lookup
+        const isLocal = transferType === "local";
+        if (isLocal || selectedBank === "evergreen") {
           const res = await accountsApi.lookup(clean);
           const { account_name, account_type, currency } = res.data;
           setLookupResult({ name: account_name, accountType: account_type, currency, found: true, canResolve: true });
           setValue("recipient_name", account_name, { shouldValidate: true });
         } else {
-          // External bank lookup
+          // International — external bank lookup
           const res = await accountsApi.resolveExternal(clean, selectedBank, selectedCountry);
           const { account_name, can_resolve, message } = res.data;
           if (can_resolve && account_name) {
             setLookupResult({ name: account_name, accountType: "bank account", currency: currentCountryData?.currency ?? "USD", found: true, canResolve: true });
             setValue("recipient_name", account_name, { shouldValidate: true });
           } else {
-            // Country doesn't support auto-resolve — prompt manual entry
             setLookupResult({ name: "", accountType: "", currency: "", found: false, canResolve: false, message: message ?? "Manual entry required" });
           }
         }
@@ -440,7 +440,7 @@ export default function PaymentsPage() {
         setLookupLoading(false);
       }
     }, 500);
-  }, [setValue, selectedBank, selectedCountry, currentCountryData]);
+  }, [setValue, selectedBank, selectedCountry, currentCountryData, transferType]);
 
   const loadData = useCallback(async () => {
     setHistLoad(true);
@@ -466,6 +466,11 @@ export default function PaymentsPage() {
     setLookupResult(null);
     setLookupLoading(false);
     if (lookupTimerRef.current) clearTimeout(lookupTimerRef.current);
+    // When switching to local, reset to Evergreen
+    if (transferType === "local") {
+      setSelectedCountry("NG");
+      setSelectedBank("evergreen");
+    }
   }, [transferType]);
 
   // Clear lookup when bank selection changes
@@ -623,54 +628,58 @@ export default function PaymentsPage() {
 
                     {/* ── Step 1: Bank selector + Account number ── */}
                     <div>
-                      {/* Country selector */}
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                        Country
-                      </label>
-                      <select
-                        className="input-base mb-3"
-                        value={selectedCountry}
-                        onChange={(e) => {
-                          const newCountry = e.target.value;
-                          setSelectedCountry(newCountry);
-                          // Default to first bank of new country
-                          const firstBank = WORLD_BANKS[newCountry]?.banks[0]?.code ?? "evergreen";
-                          setSelectedBank(firstBank);
-                          setValue("recipient_account", "");
-                          setValue("recipient_name", "");
-                        }}
-                      >
-                        {COUNTRY_LIST.map(c => (
-                          <option key={c.code} value={c.code}>
-                            {c.flag} {c.name}
-                          </option>
-                        ))}
-                      </select>
+                      {/* Country + Bank selectors — only for international */}
+                      {transferType === "international" && (
+                        <>
+                          {/* Country selector */}
+                          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                            Country
+                          </label>
+                          <select
+                            className="input-base mb-3"
+                            value={selectedCountry}
+                            onChange={(e) => {
+                              const newCountry = e.target.value;
+                              setSelectedCountry(newCountry);
+                              const firstBank = WORLD_BANKS[newCountry]?.banks[0]?.code ?? "evergreen";
+                              setSelectedBank(firstBank);
+                              setValue("recipient_account", "");
+                              setValue("recipient_name", "");
+                            }}
+                          >
+                            {COUNTRY_LIST.filter(c => c.code !== "NG" || true).map(c => (
+                              <option key={c.code} value={c.code}>
+                                {c.flag} {c.name}
+                              </option>
+                            ))}
+                          </select>
 
-                      {/* Bank selector */}
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                        Bank
-                      </label>
-                      <select
-                        className="input-base mb-3"
-                        value={selectedBank}
-                        onChange={(e) => {
-                          setSelectedBank(e.target.value);
-                          setValue("recipient_account", "");
-                          setValue("recipient_name", "");
-                        }}
-                      >
-                        {(WORLD_BANKS[selectedCountry]?.banks ?? []).map(b => (
-                          <option key={b.code} value={b.code}>{b.name}</option>
-                        ))}
-                      </select>
+                          {/* Bank selector */}
+                          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                            Bank
+                          </label>
+                          <select
+                            className="input-base mb-3"
+                            value={selectedBank}
+                            onChange={(e) => {
+                              setSelectedBank(e.target.value);
+                              setValue("recipient_account", "");
+                              setValue("recipient_name", "");
+                            }}
+                          >
+                            {(WORLD_BANKS[selectedCountry]?.banks ?? []).map(b => (
+                              <option key={b.code} value={b.code}>{b.name}</option>
+                            ))}
+                          </select>
 
-                      {/* Auto-resolve availability notice */}
-                      {!currentCountryData?.canAutoResolve && selectedBank !== "evergreen" && (
-                        <div className="mb-3 flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2 text-xs text-amber-400">
-                          <span className="text-base leading-none mt-0.5">ℹ</span>
-                          <span>Auto name-lookup is not available for {currentCountryData?.name ?? "this country"}. Please enter the recipient name manually.</span>
-                        </div>
+                          {/* Auto-resolve availability notice */}
+                          {!currentCountryData?.canAutoResolve && (
+                            <div className="mb-3 flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2 text-xs text-amber-400">
+                              <span className="text-base leading-none mt-0.5">ℹ</span>
+                              <span>Auto name-lookup is not available for {currentCountryData?.name ?? "this country"}. Please enter the recipient name manually.</span>
+                            </div>
+                          )}
+                        </>
                       )}
 
                       <Input
