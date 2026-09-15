@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, RefreshCw, Shield } from "lucide-react";
+import { Search, RefreshCw, Shield, Trash2, AlertTriangle } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Skeleton from "@/components/ui/Skeleton";
+import Modal from "@/components/ui/Modal";
+import Button from "@/components/ui/Button";
 import { formatDate } from "@/lib/utils";
+import toast from "react-hot-toast";
 
 const NODE = process.env.NEXT_PUBLIC_NODE_API_URL ?? "http://localhost:4000";
 const ADMIN_TOKEN_KEY = "eg_admin_token";
@@ -16,19 +19,34 @@ interface AdminUser {
   created_at: string; country: string;
 }
 
+function getAdminToken() {
+  if (typeof window === "undefined") return "";
+  return sessionStorage.getItem(ADMIN_TOKEN_KEY) ?? localStorage.getItem("eg_token") ?? "";
+}
+
 async function fetchUsers(): Promise<AdminUser[]> {
-  const token = sessionStorage.getItem(ADMIN_TOKEN_KEY) ?? localStorage.getItem("eg_token") ?? "";
   const res = await fetch(`${NODE}/api/admin/users`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${getAdminToken()}` },
   });
   const json = await res.json();
   return (json.data ?? []) as AdminUser[];
 }
 
+async function deleteUser(id: string): Promise<void> {
+  const res = await fetch(`${NODE}/api/admin/users/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${getAdminToken()}` },
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.message ?? `Delete failed (${res.status})`);
+}
+
 export default function AdminUsersPage() {
-  const [users,   setUsers]   = useState<AdminUser[]>([]);
-  const [search,  setSearch]  = useState("");
-  const [loading, setLoading] = useState(true);
+  const [users,         setUsers]         = useState<AdminUser[]>([]);
+  const [search,        setSearch]        = useState("");
+  const [loading,       setLoading]       = useState(true);
+  const [confirmUser,   setConfirmUser]   = useState<AdminUser | null>(null);
+  const [deleting,      setDeleting]      = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -43,6 +61,21 @@ export default function AdminUsersPage() {
     u.full_name.toLowerCase().includes(search.toLowerCase()) ||
     u.email.toLowerCase().includes(search.toLowerCase())
   );
+
+  const handleDelete = async () => {
+    if (!confirmUser || deleting) return;
+    setDeleting(true);
+    try {
+      await deleteUser(confirmUser.id);
+      toast.success(`${confirmUser.full_name} deleted successfully`);
+      setUsers(prev => prev.filter(u => u.id !== confirmUser.id));
+      setConfirmUser(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete user");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <div className="space-y-5">
@@ -67,22 +100,22 @@ export default function AdminUsersPage() {
 
       <Card padding="none">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[700px]">
+          <table className="w-full text-sm min-w-[780px]">
             <thead>
               <tr className="border-b border-dark-border bg-dark-muted/50">
-                {["Name","Email","Phone","Type","KYC","Country","Joined","Status"].map(h => (
-                  <th key={h} className="text-left text-xs font-semibold text-slate-500 px-5 py-3 uppercase tracking-wide">{h}</th>
+                {["Name","Email","Phone","Type","KYC","Country","Joined","Status",""].map((h, i) => (
+                  <th key={i} className="text-left text-xs font-semibold text-slate-500 px-5 py-3 uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading
                 ? [1,2,3,4,5].map(i => (
-                  <tr key={i}><td colSpan={8} className="px-5 py-3"><Skeleton height="36px" /></td></tr>
+                  <tr key={i}><td colSpan={9} className="px-5 py-3"><Skeleton height="36px" /></td></tr>
                 ))
                 : filtered.length === 0
                   ? (
-                    <tr><td colSpan={8} className="text-center py-12 text-slate-500">
+                    <tr><td colSpan={9} className="text-center py-12 text-slate-500">
                       <Shield className="h-10 w-10 mx-auto mb-3 opacity-30" />
                       {search ? "No matching users" : "No users registered yet"}
                     </td></tr>
@@ -112,12 +145,68 @@ export default function AdminUsersPage() {
                           {u.is_active ? "Active" : "Inactive"}
                         </Badge>
                       </td>
+                      <td className="px-5 py-3.5">
+                        <button
+                          onClick={() => setConfirmUser(u)}
+                          title="Delete user"
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-400/10 transition-all"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
                     </tr>
                   ))}
             </tbody>
           </table>
         </div>
       </Card>
+
+      {/* Confirm delete modal */}
+      <Modal
+        open={!!confirmUser}
+        onClose={() => !deleting && setConfirmUser(null)}
+        title="Delete User"
+        description="This action is permanent and cannot be undone."
+        footer={
+          <div className="flex gap-3">
+            <Button variant="secondary" fullWidth onClick={() => setConfirmUser(null)} disabled={deleting}>
+              Cancel
+            </Button>
+            <Button
+              fullWidth
+              loading={deleting}
+              onClick={handleDelete}
+              className="bg-red-600 hover:bg-red-700 focus-visible:ring-red-500"
+              leftIcon={!deleting ? <Trash2 className="h-4 w-4" /> : undefined}
+            >
+              Delete User
+            </Button>
+          </div>
+        }
+      >
+        {confirmUser && (
+          <div className="py-2 space-y-4">
+            <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+              <AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0" />
+              <p className="text-sm text-red-300">
+                All data for this user will be permanently deleted — account, transactions, and login access.
+              </p>
+            </div>
+            <div className="space-y-2">
+              {[
+                ["Name",  confirmUser.full_name],
+                ["Email", confirmUser.email],
+                ["Type",  confirmUser.account_type],
+              ].map(([label, value]) => (
+                <div key={label} className="flex justify-between py-1.5 border-b border-dark-border last:border-0">
+                  <span className="text-sm text-slate-400">{label}</span>
+                  <span className="text-sm font-medium text-white">{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
