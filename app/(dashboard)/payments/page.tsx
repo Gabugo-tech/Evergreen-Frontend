@@ -361,7 +361,7 @@ type Tab = "send" | "exchange";
 interface PaymentHistoryItem {
   id: string; description: string; amount: number; currency: string;
   status: string; created_at: string; recipient_name?: string;
-  reference: string;
+  reference: string; type: string;
 }
 
 export default function PaymentsPage() {
@@ -435,7 +435,9 @@ export default function PaymentsPage() {
         setLookupResult({ name: account_name, accountType: account_type, currency, found: true, canResolve: true });
         setValue("recipient_name", account_name, { shouldValidate: true });
       } catch {
-        setLookupResult({ name: "", accountType: "", currency: "", found: false, canResolve: true });
+        // Account not found on Evergreen — fall through to manual entry
+        // (canResolve: false triggers the manual name field to appear)
+        setLookupResult({ name: "", accountType: "", currency: "", found: false, canResolve: false, message: "Account not found — enter the recipient name manually." });
       } finally {
         setLookupLoading(false);
       }
@@ -452,12 +454,13 @@ export default function PaymentsPage() {
     if (accsRes.status   === "fulfilled") {
       const accs = (accsRes.value.data ?? []) as BankAccount[];
       setAccounts(accs);
-      if (accs.length > 0 && !watchFromAccId) setValue("from_account_id", accs[0].id);
+      // Only set default account on first load — don't override a user's manual selection
+      setValue("from_account_id", (prev: string) => prev || (accs[0]?.id ?? ""));
     }
     if (histRes.status   === "fulfilled") setHistory((histRes.value.data ?? []) as PaymentHistoryItem[]);
     if (ratesRes.status  === "fulfilled") setFxRates((ratesRes.value.data as { rates: Record<string,number> })?.rates ?? {});
     setHistLoad(false);
-  }, []);
+  }, [setValue]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -502,6 +505,13 @@ export default function PaymentsPage() {
 
     // Build receipt upfront from known data
     // (we update reference/date from the server response if available)
+    // Convert the flat $2.50 USD fee into the sender's fromCurrency so the
+    // receipt always shows the fee in the same currency the user sent.
+    const feeUSD       = pendingData.transfer_type === "international" ? 2.5 : 0;
+    const usdRate      = fxRates["USD"]          ?? 1;
+    const fromRateNow  = fxRates[fromCurrency]   ?? 1;
+    const feeInFromCurrency = feeUSD * (fromRateNow / usdRate);
+
     const optimisticReceipt: ReceiptData = {
       reference:         `EG${Date.now().toString(36).toUpperCase()}`,
       date:              new Date().toISOString(),
@@ -512,7 +522,7 @@ export default function PaymentsPage() {
       sender_account:    selectedAccount?.account_number ?? "—",
       amount:            Number(pendingData.amount),
       currency:          fromCurrency,
-      fee:               pendingData.transfer_type === "international" ? 2.5 : 0,
+      fee:               +feeInFromCurrency.toFixed(2),
       status:            "completed",
       transfer_type:     pendingData.transfer_type,
       ...(pendingData.transfer_type === "international" ? {
@@ -878,7 +888,9 @@ export default function PaymentsPage() {
                           <p className="text-xs text-slate-400 mt-0.5">{formatRelativeTime(t.created_at)}</p>
                         </div>
                         <div className="text-right flex-shrink-0">
-                          <p className="text-sm font-semibold negative">-{formatCurrency(Math.abs(t.amount), t.currency)}</p>
+                          <p className={cn("text-sm font-semibold", t.type === "credit" ? "positive" : "negative")}>
+                            {t.type === "credit" ? "+" : "-"}{formatCurrency(Math.abs(t.amount), t.currency)}
+                          </p>
                           <Badge variant={t.status==="completed"?"green":t.status==="pending"?"yellow":"red"} dot className="mt-0.5">{t.status}</Badge>
                         </div>
                       </div>

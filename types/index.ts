@@ -33,7 +33,7 @@ export interface BankAccount {
 
 // ─── Transactions ────────────────────────────────────────────────────────────
 export type TransactionType = "credit" | "debit" | "transfer";
-export type TransactionStatus = "pending" | "completed" | "failed" | "cancelled";
+export type TransactionStatus = "pending" | "completed" | "failed" | "cancelled" | "processing";
 
 export interface Transaction {
   id: string;
@@ -54,14 +54,14 @@ export interface Transaction {
 
 // ─── Payments ────────────────────────────────────────────────────────────────
 export interface PaymentPayload {
-  from_account_id: string;
+  from_account_id:   string;
   to_account_number: string;
-  to_bank_code?: string;
-  amount: number;
-  currency: string;
-  description: string;
-  recipient_name: string;
-  transfer_type: "local" | "international";
+  recipient_name:    string;
+  amount:            number;
+  from_currency:     string;   // 3-letter ISO code of the sender's currency
+  to_currency:       string;   // 3-letter ISO code of the recipient's currency
+  description:       string;
+  transfer_type:     "local" | "international";
 }
 
 // ─── Portfolio & Investments ──────────────────────────────────────────────────
