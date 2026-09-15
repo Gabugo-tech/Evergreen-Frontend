@@ -377,10 +377,10 @@ export default function RegisterPage() {
                 <label className="flex items-start gap-3 cursor-pointer">
                   <input
                     type="checkbox"
-                    className="mt-0.5 h-4 w-4 rounded accent-primary-600 cursor-pointer"
+                    className="mt-1 h-4 w-4 flex-shrink-0 rounded accent-primary-600 cursor-pointer"
                     {...form2.register("agree_terms")}
                   />
-                  <span className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                  <span className="flex-1 min-w-0 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
                     I agree to the{" "}
                     <Link href="/terms" className="text-primary-600 dark:text-primary-400 hover:underline font-medium">
                       Terms of Service
