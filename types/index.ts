@@ -33,7 +33,7 @@ export interface BankAccount {
 
 // ─── Transactions ────────────────────────────────────────────────────────────
 export type TransactionType = "credit" | "debit" | "transfer";
-export type TransactionStatus = "pending" | "completed" | "failed" | "cancelled" | "processing";
+export type TransactionStatus = "pending" | "completed" | "failed" | "cancelled";
 
 export interface Transaction {
   id: string;
