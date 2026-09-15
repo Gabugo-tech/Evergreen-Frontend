@@ -84,9 +84,12 @@ export default function DashboardPage() {
     return () => { mounted = false; };
   }, []);
 
-  const totalBalance   = accounts.reduce((s, a) => s + (a.currency === "USD" ? a.balance : 0), 0);
-  const portfolioValue = (netWorth?.investment_value ?? 0);
-  const totalAssets    = (netWorth?.total_assets ?? 0);
+  const totalBalance   = accounts.reduce((s, a) => s + Number(a.balance ?? 0), 0);
+  const portfolioValue = Number(netWorth?.investment_value ?? 0);
+  // Use Python net worth if available, otherwise fall back to locally-computed bank balance
+  const totalAssets    = netWorth?.total_assets
+    ? Number(netWorth.total_assets)
+    : totalBalance + portfolioValue;
 
   const donutData = alloc.map((a, i) => ({
     name: a.asset_type,
