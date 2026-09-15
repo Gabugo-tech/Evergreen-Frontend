@@ -529,7 +529,7 @@ export default function PaymentsPage() {
         recipient_name:    pendingData.recipient_name,
         amount:            Number(pendingData.amount),
         from_currency:     fromCurrency,
-        to_currency:       transferType === "international" ? toCurrency : fromCurrency,
+        to_currency:       pendingData.transfer_type === "international" ? toCurrency : fromCurrency,
         description:       pendingData.description,
         transfer_type:     pendingData.transfer_type,
       });
