@@ -404,6 +404,19 @@ export default function PaymentsPage() {
     // Strip formatting so "384 726 1950" → "3847261950"
     const clean = value.replace(/[\s-]/g, "");
 
+    // External banks (international, non-Evergreen) — skip lookup entirely,
+    // prompt the user to fill in their name manually.
+    const isExternal = transferType === "international" && selectedBank !== "evergreen";
+    if (isExternal) {
+      setLookupLoading(false);
+      if (clean.length >= 5) {
+        setLookupResult({ name: "", accountType: "", currency: "", found: false, canResolve: false, message: "Enter the recipient name manually below." });
+      } else {
+        setLookupResult(null);
+      }
+      return;
+    }
+
     // Need at least 5 chars to bother querying
     if (clean.length < 5) {
       setLookupResult(null);
@@ -416,31 +429,18 @@ export default function PaymentsPage() {
 
     lookupTimerRef.current = setTimeout(async () => {
       try {
-        // Local transfer always uses Evergreen internal lookup
-        const isLocal = transferType === "local";
-        if (isLocal || selectedBank === "evergreen") {
-          const res = await accountsApi.lookup(clean);
-          const { account_name, account_type, currency } = res.data;
-          setLookupResult({ name: account_name, accountType: account_type, currency, found: true, canResolve: true });
-          setValue("recipient_name", account_name, { shouldValidate: true });
-        } else {
-          // International — external bank lookup
-          const res = await accountsApi.resolveExternal(clean, selectedBank, selectedCountry);
-          const { account_name, can_resolve, message } = res.data;
-          if (can_resolve && account_name) {
-            setLookupResult({ name: account_name, accountType: "bank account", currency: currentCountryData?.currency ?? "USD", found: true, canResolve: true });
-            setValue("recipient_name", account_name, { shouldValidate: true });
-          } else {
-            setLookupResult({ name: "", accountType: "", currency: "", found: false, canResolve: false, message: message ?? "Manual entry required" });
-          }
-        }
+        // Local transfer or Evergreen selected — use internal lookup
+        const res = await accountsApi.lookup(clean);
+        const { account_name, account_type, currency } = res.data;
+        setLookupResult({ name: account_name, accountType: account_type, currency, found: true, canResolve: true });
+        setValue("recipient_name", account_name, { shouldValidate: true });
       } catch {
         setLookupResult({ name: "", accountType: "", currency: "", found: false, canResolve: true });
       } finally {
         setLookupLoading(false);
       }
     }, 500);
-  }, [setValue, selectedBank, selectedCountry, currentCountryData, transferType]);
+  }, [setValue, selectedBank, transferType]);
 
   const loadData = useCallback(async () => {
     setHistLoad(true);
