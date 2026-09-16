@@ -400,7 +400,7 @@ export default function PaymentsPage() {
 
   const currentCountryData = WORLD_BANKS[selectedCountry];
 
-  const { register, handleSubmit, formState: { errors }, reset, watch, setValue } = useForm<SendFormData>({
+  const { register, handleSubmit, formState: { errors }, reset, watch, setValue, getValues } = useForm<SendFormData>({
     resolver: zodResolver(sendSchema),
     defaultValues: { transfer_type: "local" },
   });
@@ -412,8 +412,8 @@ export default function PaymentsPage() {
   const handleAccountNumberChange = useCallback((value: string) => {
     if (lookupTimerRef.current) clearTimeout(lookupTimerRef.current);
 
-    // Strip formatting so "384 726 1950" → "3847261950"
-    const clean = value.replace(/[\s-]/g, "");
+    // Strip all non-digit characters so "384 726 1950" or "EG3847261950" → "3847261950"
+    const clean = value.replace(/\D/g, "");
 
     // External banks (international, non-Evergreen) — skip lookup entirely,
     // prompt the user to fill in their name manually.
@@ -466,7 +466,8 @@ export default function PaymentsPage() {
       const accs = (accsRes.value.data ?? []) as BankAccount[];
       setAccounts(accs);
       // Only set default account on first load — don't override a user's manual selection
-      setValue("from_account_id", (prev: string) => prev || (accs[0]?.id ?? ""));
+      const currentAccId = getValues("from_account_id");
+      if (!currentAccId && accs.length > 0) setValue("from_account_id", accs[0].id);
     }
     if (histRes.status   === "fulfilled") setHistory((histRes.value.data ?? []) as PaymentHistoryItem[]);
     if (ratesRes.status  === "fulfilled") setFxRates((ratesRes.value.data as { rates: Record<string,number> })?.rates ?? {});
@@ -564,16 +565,12 @@ export default function PaymentsPage() {
 
       toast.success("Transfer sent successfully!");
     } catch (err) {
-      // Even if the API throws, the debit may have gone through (e.g. duplicate reference
-      // on the credit leg). Show receipt with optimistic data and warn the user.
       const msg = err instanceof Error ? err.message : "Transfer failed";
-      // If it's a duplicate key error, the transaction likely succeeded — show receipt
       if (msg.toLowerCase().includes("duplicate") || msg.toLowerCase().includes("unique")) {
         toast("Transfer processed — please check your balance.", { icon: "ℹ️" });
       } else {
         toast.error(msg);
-        setSending(false);
-        return; // genuine failure — don't show receipt
+        return; // genuine failure — finally still fires to reset sending state
       }
     } finally {
       setSending(false);
@@ -940,19 +937,27 @@ export default function PaymentsPage() {
         }>
         {pendingData && (
           <div className="space-y-3 py-2">
-            {[
-              ["Recipient",   pendingData.recipient_name],
-              ["Account",     pendingData.recipient_account],
-              ["Amount",      formatCurrency(Number(pendingData.amount), fromCurrency)],
-              ["Type",        pendingData.transfer_type === "international" ? "International" : "Local"],
-              ["Description", pendingData.description],
-              ["Fee",         pendingData.transfer_type === "international" ? "$2.50" : "Free"],
-            ].map(([label, val]) => (
-              <div key={label} className="flex items-center justify-between py-2 border-b border-light-border dark:border-dark-border last:border-0">
-                <span className="text-sm text-slate-500 dark:text-slate-400">{label}</span>
-                <span className="text-sm font-semibold text-slate-900 dark:text-white">{val}</span>
-              </div>
-            ))}
+            {(() => {
+              const feeUSD = pendingData.transfer_type === "international" ? 2.5 : 0;
+              const feeInFrom = feeUSD > 0
+                ? +(feeUSD * ((fxRates[fromCurrency] ?? 1) / (fxRates["USD"] ?? 1))).toFixed(2)
+                : 0;
+              const feeCurrSymbol = CURRENCIES.find(c => c.code === fromCurrency)?.symbol ?? "";
+              const feeLabel = feeUSD > 0 ? `${feeCurrSymbol}${feeInFrom} ${fromCurrency}` : "Free";
+              return [
+                ["Recipient",   pendingData.recipient_name],
+                ["Account",     pendingData.recipient_account],
+                ["Amount",      formatCurrency(Number(pendingData.amount), fromCurrency)],
+                ["Type",        pendingData.transfer_type === "international" ? "International" : "Local"],
+                ["Description", pendingData.description],
+                ["Fee",         feeLabel],
+              ].map(([label, val]) => (
+                <div key={label} className="flex items-center justify-between py-2 border-b border-light-border dark:border-dark-border last:border-0">
+                  <span className="text-sm text-slate-500 dark:text-slate-400">{label}</span>
+                  <span className="text-sm font-semibold text-slate-900 dark:text-white">{val}</span>
+                </div>
+              ));
+            })()}
           </div>
         )}
       </Modal>
