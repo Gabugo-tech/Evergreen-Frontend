@@ -39,7 +39,9 @@ const CURRENCIES = [
   { code: "MXN", name: "Mexican Peso",     symbol: "$",   flag: "🇲🇽" },
   { code: "ZAR", name: "South African Rand",symbol:"R",   flag: "🇿🇦" },
   { code: "SGD", name: "Singapore Dollar", symbol: "S$",  flag: "🇸🇬" },
-  { code: "AED", name: "UAE Dirham",       symbol: "د.إ", flag: "🇦🇪" },
+  { code: "THB", name: "Thai Baht",          symbol: "฿",   flag: "🇹🇭" },
+  { code: "TWD", name: "Taiwan Dollar",       symbol: "NT$", flag: "🇹🇼" },
+  { code: "AED", name: "UAE Dirham",          symbol: "د.إ", flag: "🇦🇪" },
 ];
 
 // ─── World banks organised by country ──────────────────────────────────────
