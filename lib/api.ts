@@ -55,11 +55,12 @@ function python<T>(path: string, options?: RequestInit) {
 
 export const authApi = {
   register: (body: {
-    full_name: string;
-    email: string;
-    phone: string;
-    password: string;
+    full_name:    string;
+    email:        string;
+    phone:        string;
+    password:     string;
     account_type: "personal" | "business";
+    payment_pin:  string;
   }) =>
     node<{ data: { token: string; user: unknown } }>("/api/auth/register", {
       method: "POST",
@@ -88,6 +89,33 @@ export const authApi = {
     node("/api/auth/reset-password", {
       method: "POST",
       body: JSON.stringify({ email, otp, password }),
+    }),
+
+  // ── Payment PIN ────────────────────────────────────────────────────────────
+
+  /** Verify payment PIN before a transfer (lightweight pre-check) */
+  verifyPin: (pin: string) =>
+    node<{ data: { verified: boolean } }>("/api/auth/verify-pin", {
+      method: "POST",
+      body: JSON.stringify({ pin }),
+    }),
+
+  /** Request OTP to be sent to registered email for PIN reset */
+  requestPinReset: () =>
+    node("/api/auth/request-pin-reset", { method: "POST" }),
+
+  /** Verify PIN-reset OTP (re-uses verify-otp endpoint with stored OTP) */
+  verifyPinOtp: (otp: string) =>
+    node<{ data: { verified: boolean } }>("/api/auth/verify-otp", {
+      method: "POST",
+      body: JSON.stringify({ otp }),
+    }),
+
+  /** Complete PIN reset with OTP + new PIN */
+  resetPin: (otp: string, new_pin: string) =>
+    node("/api/auth/reset-pin", {
+      method: "POST",
+      body: JSON.stringify({ otp, new_pin }),
     }),
 };
 
@@ -158,7 +186,6 @@ export const paymentsApi = {
       method: "POST",
       body: JSON.stringify(body),
     }),
-  exchange: (body: unknown) =>
     node<{ data: unknown }>("/api/payments/exchange", {
       method: "POST",
       body: JSON.stringify(body),

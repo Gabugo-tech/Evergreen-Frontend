@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   Eye, EyeOff, Mail, Lock, User, Phone, ArrowRight,
-  CheckCircle2, Building2,
+  CheckCircle2, Building2, Delete, KeyRound,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Button from "@/components/ui/Button";
@@ -19,10 +19,11 @@ import { useAuth } from "@/context/AuthContext";
 import type { User as UserType } from "@/types";
 import toast from "react-hot-toast";
 
+// ─── Schemas ─────────────────────────────────────────────────────────────────
 const personalSchema = z.object({
   full_name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Enter a valid email address"),
-  phone: z.string().min(7, "Enter a valid phone number"),
+  email:     z.string().email("Enter a valid email address"),
+  phone:     z.string().min(7, "Enter a valid phone number"),
 });
 
 const securitySchema = z.object({
@@ -33,9 +34,7 @@ const securitySchema = z.object({
     .regex(/[0-9]/, "Include a number"),
   confirm_password: z.string(),
   account_type: z.enum(["personal", "business"]),
-  agree_terms: z.boolean().refine((v) => v === true, {
-    message: "You must accept the terms",
-  }),
+  agree_terms:  z.boolean().refine((v) => v === true, { message: "You must accept the terms" }),
 }).refine((d) => d.password === d.confirm_password, {
   message: "Passwords do not match",
   path: ["confirm_password"],
@@ -47,50 +46,44 @@ type Step2Data = z.infer<typeof securitySchema>;
 const steps = [
   { id: 1, label: "Personal Info" },
   { id: 2, label: "Security" },
-  { id: 3, label: "Confirm" },
+  { id: 3, label: "Payment PIN" },
+  { id: 4, label: "Confirm" },
 ];
 
+const PIN_LENGTH = 4;
+const KEYS = ["1","2","3","4","5","6","7","8","9","","0","⌫"];
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 function PasswordStrength({ password }: { password: string }) {
   const checks = [
-    { label: "8+ characters", pass: password.length >= 8 },
+    { label: "8+ characters",    pass: password.length >= 8 },
     { label: "Uppercase letter", pass: /[A-Z]/.test(password) },
-    { label: "Number", pass: /[0-9]/.test(password) },
-    { label: "Special character", pass: /[^A-Za-z0-9]/.test(password) },
+    { label: "Number",           pass: /[0-9]/.test(password) },
+    { label: "Special character",pass: /[^A-Za-z0-9]/.test(password) },
   ];
-  const score = checks.filter((c) => c.pass).length;
+  const score  = checks.filter((c) => c.pass).length;
   const colors = ["", "bg-danger-light", "bg-warning-light", "bg-primary-500", "bg-success-light"];
   const labels = ["", "Weak", "Fair", "Good", "Strong"];
-
   return (
     <div className="mt-2 space-y-2">
       <div className="flex gap-1">
         {[1, 2, 3, 4].map((i) => (
-          <div
-            key={i}
-            className={cn(
-              "h-1 flex-1 rounded-full transition-all duration-300",
-              i <= score ? colors[score] : "bg-slate-200 dark:bg-dark-border"
-            )}
-          />
+          <div key={i} className={cn("h-1 flex-1 rounded-full transition-all duration-300",
+            i <= score ? colors[score] : "bg-slate-200 dark:bg-dark-border")} />
         ))}
       </div>
       <div className="flex items-center justify-between">
         <div className="flex flex-wrap gap-x-3 gap-y-1">
           {checks.map((c) => (
-            <span
-              key={c.label}
-              className={cn(
-                "text-xs flex items-center gap-1",
-                c.pass ? "text-success-light" : "text-slate-400"
-              )}
-            >
-              <CheckCircle2 className="h-3 w-3" />
-              {c.label}
+            <span key={c.label} className={cn("text-xs flex items-center gap-1",
+              c.pass ? "text-success-light" : "text-slate-400")}>
+              <CheckCircle2 className="h-3 w-3" />{c.label}
             </span>
           ))}
         </div>
         {score > 0 && (
-          <span className={cn("text-xs font-medium", `text-${["", "danger-light", "warning-light", "primary-500", "success-light"][score]}`)}>
+          <span className={cn("text-xs font-medium",
+            `text-${["","danger-light","warning-light","primary-500","success-light"][score]}`)}>
             {labels[score]}
           </span>
         )}
@@ -99,47 +92,104 @@ function PasswordStrength({ password }: { password: string }) {
   );
 }
 
+function PinKeypad({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
+  const handleKey = useCallback((key: string) => {
+    if (key === "⌫") onChange(value.slice(0, -1));
+    else if (value.length < PIN_LENGTH) onChange(value + key);
+  }, [value, onChange]);
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm font-medium text-slate-700 dark:text-slate-300 text-center">{label}</p>
+      <div className="flex items-center justify-center gap-4">
+        {Array.from({ length: PIN_LENGTH }).map((_, i) => (
+          <div key={i} className={cn(
+            "h-12 w-12 rounded-xl border-2 flex items-center justify-center transition-all",
+            i < value.length
+              ? "border-primary-500 bg-primary-500/10"
+              : "border-slate-300 dark:border-dark-border bg-light-muted dark:bg-dark-muted"
+          )}>
+            {i < value.length && <div className="h-3 w-3 rounded-full bg-primary-500" />}
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        {KEYS.map((key, i) => {
+          if (key === "") return <div key={i} />;
+          const isBack = key === "⌫";
+          return (
+            <button key={i} type="button" onClick={() => handleKey(key)}
+              disabled={!isBack && value.length >= PIN_LENGTH}
+              className={cn(
+                "h-14 rounded-2xl text-xl font-semibold transition-all active:scale-95 select-none",
+                isBack
+                  ? "bg-slate-100 dark:bg-dark-muted text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-dark-border flex items-center justify-center"
+                  : "bg-light-surface dark:bg-dark-card text-slate-900 dark:text-white border border-light-border dark:border-dark-border hover:bg-primary-50 dark:hover:bg-primary-900/20",
+                "disabled:opacity-40 disabled:cursor-not-allowed"
+              )}>
+              {isBack ? <Delete className="h-5 w-5 mx-auto" /> : key}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function RegisterPage() {
-  const [step, setStep] = useState(1);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [step1Data, setStep1Data] = useState<Step1Data | null>(null);
+  const [step,         setStep]        = useState(1);
+  const [showPassword, setShowPassword]= useState(false);
+  const [showConfirm,  setShowConfirm] = useState(false);
+  const [isLoading,    setIsLoading]   = useState(false);
+  const [step1Data,    setStep1Data]   = useState<Step1Data | null>(null);
+  const [step2Data,    setStep2Data]   = useState<Step2Data | null>(null);
+  const [pin,          setPin]         = useState("");
+  const [confirmPin,   setConfirmPin]  = useState("");
+  const [pinSubStep,   setPinSubStep]  = useState<"enter" | "confirm">("enter");
+  const [pinError,     setPinError]    = useState<string | null>(null);
   const router = useRouter();
   const { setSession } = useAuth();
 
-  const form1 = useForm<Step1Data>({
-    resolver: zodResolver(personalSchema),
-  });
-
+  const form1 = useForm<Step1Data>({ resolver: zodResolver(personalSchema) });
   const form2 = useForm<Step2Data>({
     resolver: zodResolver(securitySchema),
     defaultValues: { account_type: "personal" },
   });
-
   const password = form2.watch("password", "");
 
-  const onStep1 = (data: Step1Data) => {
-    setStep1Data(data);
-    setStep(2);
+  const onStep1 = (data: Step1Data) => { setStep1Data(data); setStep(2); };
+
+  const onStep2 = (data: Step2Data) => { setStep2Data(data); setStep(3); };
+
+  const onPinContinue = () => {
+    if (pin.length !== PIN_LENGTH) return;
+    setPinSubStep("confirm");
+    setConfirmPin("");
+    setPinError(null);
   };
 
-  const onStep2 = async (data: Step2Data) => {
-    if (!step1Data) return;
+  const onPinConfirm = async () => {
+    if (confirmPin !== pin) {
+      setPinError("PINs do not match. Please try again.");
+      setConfirmPin("");
+      return;
+    }
+    if (!step1Data || !step2Data) return;
     setIsLoading(true);
     try {
       const payload = {
         full_name:    step1Data.full_name,
         email:        step1Data.email,
         phone:        step1Data.phone,
-        password:     data.password,
-        account_type: data.account_type,
+        password:     step2Data.password,
+        account_type: step2Data.account_type,
+        payment_pin:  pin,
       };
       const res = await authApi.register(payload);
       const { token, user } = res.data as { token: string; user: UserType };
-      // Hydrate auth context immediately so the dashboard sees the user
       setSession(token, user);
-      setStep(3);
+      setStep(4);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Registration failed. Please try again.");
     } finally {
@@ -166,163 +216,77 @@ export default function RegisterPage() {
       <div className="flex items-center gap-2 mb-8">
         {steps.map((s, i) => (
           <div key={s.id} className="flex items-center gap-2 flex-1">
-            <div
-              className={cn(
-                "h-8 w-8 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0 transition-all duration-300",
-                step > s.id
-                  ? "bg-success-light text-white"
-                  : step === s.id
-                  ? "bg-gradient-blue text-white shadow-glow-sm"
-                  : "bg-slate-200 dark:bg-dark-muted text-slate-500"
-              )}
-            >
+            <div className={cn(
+              "h-8 w-8 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0 transition-all duration-300",
+              step > s.id  ? "bg-success-light text-white"
+              : step === s.id ? "bg-gradient-blue text-white shadow-glow-sm"
+              : "bg-slate-200 dark:bg-dark-muted text-slate-500"
+            )}>
               {step > s.id ? <CheckCircle2 className="h-4 w-4" /> : s.id}
             </div>
-            <span
-              className={cn(
-                "text-xs font-medium hidden sm:block",
-                step >= s.id
-                  ? "text-slate-700 dark:text-slate-300"
-                  : "text-slate-400"
-              )}
-            >
+            <span className={cn("text-xs font-medium hidden sm:block",
+              step >= s.id ? "text-slate-700 dark:text-slate-300" : "text-slate-400")}>
               {s.label}
             </span>
             {i < steps.length - 1 && (
-              <div
-                className={cn(
-                  "flex-1 h-px transition-all duration-300",
-                  step > s.id
-                    ? "bg-success-light"
-                    : "bg-slate-200 dark:bg-dark-border"
-                )}
-              />
+              <div className={cn("flex-1 h-px transition-all duration-300",
+                step > s.id ? "bg-success-light" : "bg-slate-200 dark:bg-dark-border")} />
             )}
           </div>
         ))}
       </div>
 
       <AnimatePresence mode="wait">
-        {/* Step 1 — Personal */}
+        {/* ── Step 1 — Personal ── */}
         {step === 1 && (
-          <motion.div
-            key="step1"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.25 }}
-          >
+          <motion.div key="step1" initial={{ opacity:0, x:20 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-20 }} transition={{ duration:0.25 }}>
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-                Create account
-              </h2>
-              <p className="mt-1 text-slate-500 dark:text-slate-400 text-sm">
-                Let&apos;s start with your basic information
-              </p>
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Create account</h2>
+              <p className="mt-1 text-slate-500 dark:text-slate-400 text-sm">Let&apos;s start with your basic information</p>
             </div>
-
-            <form
-              onSubmit={form1.handleSubmit(onStep1)}
-              noValidate
-              className="space-y-4"
-            >
-              <Input
-                label="Full name"
-                type="text"
-                placeholder="John Doe"
-                autoComplete="name"
+            <form onSubmit={form1.handleSubmit(onStep1)} noValidate className="space-y-4">
+              <Input label="Full name" type="text" placeholder="John Doe" autoComplete="name"
                 leftElement={<User className="h-4 w-4" />}
                 error={form1.formState.errors.full_name?.message}
-                {...form1.register("full_name")}
-              />
-              <Input
-                label="Email address"
-                type="email"
-                placeholder="you@example.com"
-                autoComplete="email"
+                {...form1.register("full_name")} />
+              <Input label="Email address" type="email" placeholder="you@example.com" autoComplete="email"
                 leftElement={<Mail className="h-4 w-4" />}
                 error={form1.formState.errors.email?.message}
-                {...form1.register("email")}
-              />
-              <Input
-                label="Phone number"
-                type="tel"
-                placeholder="+1 234 567 8900"
-                autoComplete="tel"
+                {...form1.register("email")} />
+              <Input label="Phone number" type="tel" placeholder="+1 234 567 8900" autoComplete="tel"
                 leftElement={<Phone className="h-4 w-4" />}
                 error={form1.formState.errors.phone?.message}
-                {...form1.register("phone")}
-              />
-
-              <Button
-                type="submit"
-                fullWidth
-                size="lg"
-                className="mt-2"
-                rightIcon={<ArrowRight className="h-4 w-4" />}
-              >
+                {...form1.register("phone")} />
+              <Button type="submit" fullWidth size="lg" className="mt-2" rightIcon={<ArrowRight className="h-4 w-4" />}>
                 Continue
               </Button>
             </form>
           </motion.div>
         )}
 
-        {/* Step 2 — Security */}
+        {/* ── Step 2 — Security ── */}
         {step === 2 && (
-          <motion.div
-            key="step2"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.25 }}
-          >
+          <motion.div key="step2" initial={{ opacity:0, x:20 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-20 }} transition={{ duration:0.25 }}>
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-                Secure your account
-              </h2>
-              <p className="mt-1 text-slate-500 dark:text-slate-400 text-sm">
-                Choose a strong password and account type
-              </p>
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Secure your account</h2>
+              <p className="mt-1 text-slate-500 dark:text-slate-400 text-sm">Choose a strong password and account type</p>
             </div>
-
-            <form
-              onSubmit={form2.handleSubmit(onStep2)}
-              noValidate
-              className="space-y-4"
-            >
-              {/* Account type */}
+            <form onSubmit={form2.handleSubmit(onStep2)} noValidate className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Account type
-                </label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Account type</label>
                 <div className="grid grid-cols-2 gap-3">
                   {(["personal", "business"] as const).map((type) => (
                     <label key={type} className="cursor-pointer">
-                      <input
-                        type="radio"
-                        value={type}
-                        className="sr-only"
-                        {...form2.register("account_type")}
-                      />
-                      <div
-                        className={cn(
-                          "flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-150",
-                          form2.watch("account_type") === type
-                            ? "border-primary-500 bg-primary-50 dark:bg-primary-900/20"
-                            : "border-light-border dark:border-dark-border hover:border-primary-300 dark:hover:border-primary-700"
-                        )}
-                      >
-                        {type === "personal" ? (
-                          <User className={cn("h-5 w-5", form2.watch("account_type") === type ? "text-primary-600" : "text-slate-400")} />
-                        ) : (
-                          <Building2 className={cn("h-5 w-5", form2.watch("account_type") === type ? "text-primary-600" : "text-slate-400")} />
-                        )}
-                        <span className={cn(
-                          "text-sm font-medium capitalize",
-                          form2.watch("account_type") === type
-                            ? "text-primary-700 dark:text-primary-300"
-                            : "text-slate-600 dark:text-slate-400"
-                        )}>
+                      <input type="radio" value={type} className="sr-only" {...form2.register("account_type")} />
+                      <div className={cn("flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-150",
+                        form2.watch("account_type") === type
+                          ? "border-primary-500 bg-primary-50 dark:bg-primary-900/20"
+                          : "border-light-border dark:border-dark-border hover:border-primary-300 dark:hover:border-primary-700")}>
+                        {type === "personal"
+                          ? <User className={cn("h-5 w-5", form2.watch("account_type") === type ? "text-primary-600" : "text-slate-400")} />
+                          : <Building2 className={cn("h-5 w-5", form2.watch("account_type") === type ? "text-primary-600" : "text-slate-400")} />}
+                        <span className={cn("text-sm font-medium capitalize",
+                          form2.watch("account_type") === type ? "text-primary-700 dark:text-primary-300" : "text-slate-600 dark:text-slate-400")}>
                           {type}
                         </span>
                       </div>
@@ -330,141 +294,129 @@ export default function RegisterPage() {
                   ))}
                 </div>
               </div>
-
               <div>
-                <Input
-                  label="Password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Create a strong password"
-                  autoComplete="new-password"
-                  leftElement={<Lock className="h-4 w-4" />}
+                <Input label="Password" type={showPassword ? "text" : "password"} placeholder="Create a strong password"
+                  autoComplete="new-password" leftElement={<Lock className="h-4 w-4" />}
                   rightElement={
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-                    >
+                    <button type="button" onClick={() => setShowPassword(!showPassword)}
+                      className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   }
                   error={form2.formState.errors.password?.message}
-                  {...form2.register("password")}
-                />
+                  {...form2.register("password")} />
                 {password && <PasswordStrength password={password} />}
               </div>
-
-              <Input
-                label="Confirm password"
-                type={showConfirm ? "text" : "password"}
-                placeholder="Repeat your password"
-                autoComplete="new-password"
-                leftElement={<Lock className="h-4 w-4" />}
+              <Input label="Confirm password" type={showConfirm ? "text" : "password"} placeholder="Repeat your password"
+                autoComplete="new-password" leftElement={<Lock className="h-4 w-4" />}
                 rightElement={
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirm(!showConfirm)}
-                    className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-                  >
+                  <button type="button" onClick={() => setShowConfirm(!showConfirm)}
+                    className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
                     {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 }
                 error={form2.formState.errors.confirm_password?.message}
-                {...form2.register("confirm_password")}
-              />
-
-              {/* Terms */}
+                {...form2.register("confirm_password")} />
               <div>
                 <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="mt-1 h-4 w-4 flex-shrink-0 rounded accent-primary-600 cursor-pointer"
-                    {...form2.register("agree_terms")}
-                  />
+                  <input type="checkbox" className="mt-1 h-4 w-4 flex-shrink-0 rounded accent-primary-600 cursor-pointer"
+                    {...form2.register("agree_terms")} />
                   <span className="flex-1 min-w-0 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
                     I agree to the{" "}
-                    <Link href="/terms" className="text-primary-600 dark:text-primary-400 hover:underline font-medium">
-                      Terms of Service
-                    </Link>{" "}
-                    and{" "}
-                    <Link href="/privacy" className="text-primary-600 dark:text-primary-400 hover:underline font-medium">
-                      Privacy Policy
-                    </Link>
+                    <Link href="/terms" className="text-primary-600 dark:text-primary-400 hover:underline font-medium">Terms of Service</Link>
+                    {" "}and{" "}
+                    <Link href="/privacy" className="text-primary-600 dark:text-primary-400 hover:underline font-medium">Privacy Policy</Link>
                   </span>
                 </label>
                 {form2.formState.errors.agree_terms && (
-                  <p className="text-xs text-danger-light mt-1.5">
-                    {form2.formState.errors.agree_terms.message}
-                  </p>
+                  <p className="text-xs text-danger-light mt-1.5">{form2.formState.errors.agree_terms.message}</p>
                 )}
               </div>
-
               <div className="flex gap-3 pt-1">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  fullWidth
-                  onClick={() => setStep(1)}
-                >
-                  Back
-                </Button>
-                <Button
-                  type="submit"
-                  fullWidth
-                  loading={isLoading}
-                  size="md"
-                  rightIcon={!isLoading ? <ArrowRight className="h-4 w-4" /> : undefined}
-                >
-                  Create Account
+                <Button type="button" variant="secondary" fullWidth onClick={() => setStep(1)}>Back</Button>
+                <Button type="submit" fullWidth size="md" rightIcon={<ArrowRight className="h-4 w-4" />}>
+                  Continue
                 </Button>
               </div>
             </form>
           </motion.div>
         )}
 
-        {/* Step 3 — Success */}
+        {/* ── Step 3 — Payment PIN ── */}
         {step === 3 && (
-          <motion.div
-            key="step3"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.35 }}
-            className="text-center py-8"
-          >
+          <motion.div key="step3" initial={{ opacity:0, x:20 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-20 }} transition={{ duration:0.25 }}>
+            <div className="mb-6 text-center">
+              <div className="flex justify-center mb-3">
+                <div className="h-12 w-12 rounded-xl bg-primary-500/10 flex items-center justify-center">
+                  <KeyRound className="h-6 w-6 text-primary-500" />
+                </div>
+              </div>
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Set Payment PIN</h2>
+              <p className="mt-1 text-slate-500 dark:text-slate-400 text-sm">
+                This 4-digit PIN is separate from your password and required for every transfer.
+              </p>
+            </div>
+
+            <AnimatePresence mode="wait">
+              {pinSubStep === "enter" && (
+                <motion.div key="pin-enter" initial={{ opacity:0, x:20 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-20 }} className="space-y-5">
+                  <PinKeypad value={pin} onChange={setPin} label="Enter your 4-digit payment PIN" />
+                  <div className="flex gap-3 pt-2">
+                    <Button type="button" variant="secondary" fullWidth onClick={() => { setStep(2); setPin(""); }}>
+                      Back
+                    </Button>
+                    <Button fullWidth disabled={pin.length !== PIN_LENGTH} onClick={onPinContinue}
+                      rightIcon={<ArrowRight className="h-4 w-4" />}>
+                      Continue
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
+              {pinSubStep === "confirm" && (
+                <motion.div key="pin-confirm" initial={{ opacity:0, x:20 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-20 }} className="space-y-5">
+                  <PinKeypad value={confirmPin} onChange={setConfirmPin} label="Confirm your payment PIN" />
+                  {pinError && (
+                    <p className="text-center text-sm text-red-400">{pinError}</p>
+                  )}
+                  <div className="flex gap-3 pt-2">
+                    <Button type="button" variant="secondary" fullWidth onClick={() => { setPinSubStep("enter"); setConfirmPin(""); setPinError(null); }}>
+                      Back
+                    </Button>
+                    <Button fullWidth loading={isLoading} disabled={confirmPin.length !== PIN_LENGTH}
+                      onClick={onPinConfirm} rightIcon={!isLoading ? <ArrowRight className="h-4 w-4" /> : undefined}>
+                      Create Account
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        )}
+
+        {/* ── Step 4 — Success ── */}
+        {step === 4 && (
+          <motion.div key="step4" initial={{ opacity:0, scale:0.95 }} animate={{ opacity:1, scale:1 }} transition={{ duration:0.35 }} className="text-center py-8">
             <div className="flex justify-center mb-6">
               <div className="h-20 w-20 rounded-full bg-success-bg dark:bg-green-900/30 flex items-center justify-center">
                 <CheckCircle2 className="h-10 w-10 text-success-light" />
               </div>
             </div>
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
-              Account created!
-            </h2>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Account created!</h2>
             <p className="text-slate-500 dark:text-slate-400 mb-8 text-sm">
               Welcome to Evergreen. We&apos;ve sent a verification email to{" "}
-              <span className="font-medium text-slate-700 dark:text-slate-300">
-                {step1Data?.email}
-              </span>
+              <span className="font-medium text-slate-700 dark:text-slate-300">{step1Data?.email}</span>
             </p>
-            <Button
-              fullWidth
-              size="lg"
-              rightIcon={<ArrowRight className="h-4 w-4" />}
-              onClick={() => router.push("/dashboard")}
-            >
+            <Button fullWidth size="lg" rightIcon={<ArrowRight className="h-4 w-4" />} onClick={() => router.push("/dashboard")}>
               Go to Dashboard
             </Button>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {step < 3 && (
+      {step < 4 && (
         <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
           Already have an account?{" "}
-          <Link
-            href="/login"
-            className="font-semibold text-primary-600 dark:text-primary-400 hover:underline"
-          >
-            Sign in
-          </Link>
+          <Link href="/login" className="font-semibold text-primary-600 dark:text-primary-400 hover:underline">Sign in</Link>
         </p>
       )}
     </motion.div>

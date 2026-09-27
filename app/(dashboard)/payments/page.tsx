@@ -17,11 +17,13 @@ import Skeleton from "@/components/ui/Skeleton";
 import TransactionReceipt, { type ReceiptData } from "@/components/receipts/TransactionReceipt";
 import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import { accountsApi, paymentsApi } from "@/lib/api";
+import { accountsApi, paymentsApi, authApi } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import type { BankAccount } from "@/types";
+import PinModal from "@/components/ui/PinModal";
+import PinResetModal from "@/components/ui/PinResetModal";
 
 // ─── Currency data ─────────────────────────────────────────────────────────
 const CURRENCIES = [
@@ -393,6 +395,12 @@ export default function PaymentsPage() {
   const [pendingData,   setPendingData] = useState<SendFormData | null>(null);
   const [sending,       setSending]     = useState(false);
 
+  // PIN state
+  const [pinOpen,       setPinOpen]     = useState(false);
+  const [pinResetOpen,  setPinResetOpen]= useState(false);
+  const [pinLoading,    setPinLoading]  = useState(false);
+  const [pinError,      setPinError]    = useState<string | null>(null);
+
   // Account lookup state
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupResult,  setLookupResult]  = useState<{ name: string; accountType: string; currency: string; found: boolean; canResolve?: boolean; message?: string } | null>(null);
@@ -507,7 +515,25 @@ export default function PaymentsPage() {
 
   const onSubmit = (data: SendFormData) => {
     setPendingData(data);
-    setConfirmOpen(true);
+    setPinError(null);
+    setPinOpen(true);  // PIN first, then confirm modal
+  };
+
+  const handlePinSubmit = async (pin: string) => {
+    setPinLoading(true);
+    setPinError(null);
+    try {
+      await authApi.verifyPin(pin);
+      // PIN verified — store it for the send call and open confirm modal
+      setPinOpen(false);
+      setConfirmOpen(true);
+      // Attach pin to pendingData so handleConfirm can send it
+      setPendingData(prev => prev ? { ...prev, _pin: pin } : prev);
+    } catch (err) {
+      setPinError(err instanceof Error ? err.message : "Incorrect PIN");
+    } finally {
+      setPinLoading(false);
+    }
   };
 
   const handleConfirm = async () => {
@@ -556,6 +582,7 @@ export default function PaymentsPage() {
         to_currency:       pendingData.transfer_type === "international" ? toCurrency : fromCurrency,
         description:       pendingData.description,
         transfer_type:     pendingData.transfer_type,
+        payment_pin:       (pendingData as SendFormData & { _pin?: string })._pin ?? "",
       });
 
       const txData = (res as { data: { transaction: { reference: string; created_at: string }; fee: number } }).data;
@@ -924,6 +951,24 @@ export default function PaymentsPage() {
           </Card>
         </div>
       </div>
+
+      {/* PIN Modal — shown before confirm modal */}
+      <PinModal
+        open={pinOpen}
+        onClose={() => { setPinOpen(false); setPinError(null); }}
+        onSubmit={handlePinSubmit}
+        loading={pinLoading}
+        error={pinError}
+        showForgot
+        onForgot={() => { setPinOpen(false); setPinResetOpen(true); }}
+      />
+
+      {/* PIN Reset Modal */}
+      <PinResetModal
+        open={pinResetOpen}
+        onClose={() => setPinResetOpen(false)}
+        onDone={() => { setPinResetOpen(false); setPinOpen(true); }}
+      />
 
       {/* Confirm Modal */}
       <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title="Confirm Transfer"

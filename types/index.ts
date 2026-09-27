@@ -58,10 +58,11 @@ export interface PaymentPayload {
   to_account_number: string;
   recipient_name:    string;
   amount:            number;
-  from_currency:     string;   // 3-letter ISO code of the sender's currency
-  to_currency:       string;   // 3-letter ISO code of the recipient's currency
+  from_currency:     string;
+  to_currency:       string;
   description:       string;
   transfer_type:     "local" | "international";
+  payment_pin:       string;
 }
 
 // ─── Portfolio & Investments ──────────────────────────────────────────────────
