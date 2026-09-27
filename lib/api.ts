@@ -111,9 +111,9 @@ export const authApi = {
   requestPinReset: () =>
     node("/api/auth/request-pin-reset", { method: "POST" }),
 
-  /** Verify PIN-reset OTP (re-uses verify-otp endpoint with stored OTP) */
+  /** Verify PIN-reset OTP — authenticated endpoint, no email needed */
   verifyPinOtp: (otp: string) =>
-    node<{ data: { verified: boolean } }>("/api/auth/verify-otp", {
+    node<{ data: { verified: boolean } }>("/api/auth/verify-pin-reset-otp", {
       method: "POST",
       body: JSON.stringify({ otp }),
     }),
