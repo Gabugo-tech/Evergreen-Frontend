@@ -186,6 +186,7 @@ export const paymentsApi = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  exchange: (body: unknown) =>
     node<{ data: unknown }>("/api/payments/exchange", {
       method: "POST",
       body: JSON.stringify(body),
