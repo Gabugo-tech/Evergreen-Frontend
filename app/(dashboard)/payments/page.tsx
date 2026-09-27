@@ -524,13 +524,18 @@ export default function PaymentsPage() {
     setPinError(null);
     try {
       await authApi.verifyPin(pin);
-      // PIN verified — store it for the send call and open confirm modal
       setPinOpen(false);
       setConfirmOpen(true);
-      // Attach pin to pendingData so handleConfirm can send it
       setPendingData(prev => prev ? { ...prev, _pin: pin } : prev);
     } catch (err) {
-      setPinError(err instanceof Error ? err.message : "Incorrect PIN");
+      const msg = err instanceof Error ? err.message : "Incorrect PIN";
+      // "No payment PIN set" is handled inside PinModal itself (setup flow)
+      // so only surface other errors
+      if (!msg.toLowerCase().includes("no payment pin")) {
+        setPinError(msg);
+      } else {
+        setPinError(null); // PinModal will switch to setup mode via its own logic
+      }
     } finally {
       setPinLoading(false);
     }

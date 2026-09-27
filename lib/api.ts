@@ -93,6 +93,13 @@ export const authApi = {
 
   // ── Payment PIN ────────────────────────────────────────────────────────────
 
+  /** Set payment PIN for the first time (existing users without a PIN) */
+  setPin: (pin: string) =>
+    node("/api/auth/set-pin", {
+      method: "POST",
+      body: JSON.stringify({ pin }),
+    }),
+
   /** Verify payment PIN before a transfer (lightweight pre-check) */
   verifyPin: (pin: string) =>
     node<{ data: { verified: boolean } }>("/api/auth/verify-pin", {
