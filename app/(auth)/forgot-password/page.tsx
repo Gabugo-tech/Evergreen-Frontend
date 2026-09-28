@@ -207,8 +207,7 @@ export default function ForgotPasswordPage() {
               Didn&apos;t receive a code?{" "}
               <button type="button" disabled={isLoading}
                 className="font-semibold text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50"
-                onClick={() => emailForm.handleSubmit(onEmailSubmit)({ email })}>
-                Resend
+                onClick={() => onEmailSubmit({ email })}>                Resend
               </button>
             </p>
             <p className="mt-3 text-center">
