@@ -85,8 +85,6 @@ function ProfileTab() {
   const nameParts = fullName.trim().split(/\s+/);
   const firstName = nameParts[0] ?? "";
   const lastName  = nameParts.slice(1).join(" ");
-  const firstName = nameParts[0] ?? "";
-  const lastName  = nameParts.slice(1).join(" ");
 
   // Pick file → preview immediately, then upload
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
