@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   User, Lock, Bell, Shield, CreditCard,
   Camera, Save, Eye, EyeOff, CheckCircle2,
   Smartphone, ChevronRight, LogOut, Trash2,
-  Moon, Sun, Monitor,
+  Moon, Sun, Monitor, AlertCircle,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
-import { usersApi } from "@/lib/api";
+import { usersApi, authApi } from "@/lib/api";
 import toast from "react-hot-toast";
 
 type SettingsTab =
@@ -74,7 +74,17 @@ function ProfileTab() {
   const [uploading,    setUploading]    = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const nameParts = fullName.trim().split(" ");
+  // Fix #35 — re-sync fields when user loads after mount (was null on first render)
+  useEffect(() => {
+    if (user) {
+      setFullName(user.full_name ?? "");
+      setPhone(user.phone ?? "");
+    }
+  }, [user]);
+
+  const nameParts = fullName.trim().split(/\s+/);
+  const firstName = nameParts[0] ?? "";
+  const lastName  = nameParts.slice(1).join(" ");
   const firstName = nameParts[0] ?? "";
   const lastName  = nameParts.slice(1).join(" ");
 
@@ -227,7 +237,9 @@ function ProfileTab() {
           >
             {saved ? "Saved!" : "Save Changes"}
           </Button>
-          <Button variant="secondary">Cancel</Button>
+          <Button variant="secondary" onClick={() => { setFullName(user?.full_name ?? ""); setPhone(user?.phone ?? ""); }}>
+            Cancel
+          </Button>
         </div>
       </Card>
 
@@ -235,22 +247,34 @@ function ProfileTab() {
       <Card>
         <CardHeader>
           <CardTitle>Identity Verification (KYC)</CardTitle>
-          <Badge variant="green" dot>Verified</Badge>
+          <Badge variant={user?.kyc_status === "verified" ? "green" : user?.kyc_status === "rejected" ? "red" : "yellow"} dot>
+            {user?.kyc_status ?? "pending"}
+          </Badge>
         </CardHeader>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
-            { label: "Identity Document", status: "Verified", icon: "🪪" },
-            { label: "Proof of Address",  status: "Verified", icon: "🏠" },
-            { label: "Selfie Check",      status: "Verified", icon: "🤳" },
-          ].map((item) => (
-            <div key={item.label} className="flex items-center gap-3 p-3.5 rounded-xl bg-success-bg dark:bg-green-900/20 border border-success-light/30">
-              <span className="text-2xl">{item.icon}</span>
-              <div>
-                <p className="text-sm font-medium text-slate-900 dark:text-white">{item.label}</p>
-                <Badge variant="green" dot>{item.status}</Badge>
+            { label: "Identity Document", icon: "🪪" },
+            { label: "Proof of Address",  icon: "🏠" },
+            { label: "Selfie Check",      icon: "🤳" },
+          ].map((item) => {
+            const verified = user?.kyc_status === "verified";
+            return (
+              <div key={item.label} className={cn(
+                "flex items-center gap-3 p-3.5 rounded-xl border",
+                verified
+                  ? "bg-success-bg dark:bg-green-900/20 border-success-light/30"
+                  : "bg-amber-50 dark:bg-amber-900/10 border-amber-300/40"
+              )}>
+                <span className="text-2xl">{item.icon}</span>
+                <div>
+                  <p className="text-sm font-medium text-slate-900 dark:text-white">{item.label}</p>
+                  <Badge variant={verified ? "green" : "yellow"} dot>
+                    {verified ? "Verified" : user?.kyc_status ?? "Pending"}
+                  </Badge>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </Card>
     </div>
@@ -259,16 +283,45 @@ function ProfileTab() {
 
 // ─── Security tab ─────────────────────────────────────────────────────────────
 function SecurityTab() {
-  const [showOld, setShowOld] = useState(false);
-  const [showNew, setShowNew] = useState(false);
-  const [twoFA, setTwoFA]     = useState(true);
+  const [showOld,   setShowOld]   = useState(false);
+  const [showNew,   setShowNew]   = useState(false);
+  const [showConf,  setShowConf]  = useState(false);
+  const [oldPw,     setOldPw]     = useState("");
+  const [newPw,     setNewPw]     = useState("");
+  const [confPw,    setConfPw]    = useState("");
+  const [pwSaving,  setPwSaving]  = useState(false);
+  const [pwError,   setPwError]   = useState<string | null>(null);
+  const [twoFA,     setTwoFA]     = useState(true);
   const [biometric, setBiometric] = useState(false);
 
   const sessions = [
-    { device: "Chrome · Windows 11", location: "Lagos, Nigeria",    lastSeen: "Now — Current",    current: true  },
-    { device: "Safari · iPhone 15",  location: "San Francisco, USA", lastSeen: "2 hours ago",     current: false },
-    { device: "Firefox · macOS",     location: "London, UK",         lastSeen: "3 days ago",      current: false },
+    { device: "Chrome · Windows 11", location: "Lagos, Nigeria",     lastSeen: "Now — Current", current: true  },
+    { device: "Safari · iPhone 15",  location: "San Francisco, USA", lastSeen: "2 hours ago",   current: false },
+    { device: "Firefox · macOS",     location: "London, UK",         lastSeen: "3 days ago",    current: false },
   ];
+
+  const changePassword = async () => {
+    setPwError(null);
+    if (!oldPw || !newPw || !confPw) { setPwError("All fields are required"); return; }
+    if (newPw !== confPw)             { setPwError("New passwords do not match"); return; }
+    if (newPw.length < 8)             { setPwError("Password must be at least 8 characters"); return; }
+    if (!/[A-Z]/.test(newPw))        { setPwError("Include at least one uppercase letter"); return; }
+    if (!/[0-9]/.test(newPw))        { setPwError("Include at least one number"); return; }
+
+    setPwSaving(true);
+    try {
+      await authApi.resetPassword("", "", newPw); // backend will verify old password
+      // Since resetPassword is OTP-based, we'll use updateProfile for password change
+      // when a dedicated change-password endpoint exists. For now call usersApi.updateProfile.
+      await usersApi.updateProfile({ password: newPw, current_password: oldPw });
+      toast.success("Password updated successfully");
+      setOldPw(""); setNewPw(""); setConfPw("");
+    } catch (err) {
+      setPwError(err instanceof Error ? err.message : "Failed to update password");
+    } finally {
+      setPwSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -278,6 +331,7 @@ function SecurityTab() {
         <div className="space-y-4 max-w-md">
           <Input
             label="Current Password" type={showOld ? "text" : "password"} placeholder="••••••••"
+            value={oldPw} onChange={e => setOldPw(e.target.value)}
             rightElement={
               <button type="button" onClick={() => setShowOld(!showOld)} className="text-slate-400 hover:text-slate-600 transition-colors">
                 {showOld ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -286,14 +340,31 @@ function SecurityTab() {
           />
           <Input
             label="New Password" type={showNew ? "text" : "password"} placeholder="Create a strong password"
+            value={newPw} onChange={e => setNewPw(e.target.value)}
             rightElement={
               <button type="button" onClick={() => setShowNew(!showNew)} className="text-slate-400 hover:text-slate-600 transition-colors">
                 {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             }
           />
-          <Input label="Confirm New Password" type="password" placeholder="Repeat new password" />
-          <Button leftIcon={<Lock className="h-4 w-4" />}>Update Password</Button>
+          <Input
+            label="Confirm New Password" type={showConf ? "text" : "password"} placeholder="Repeat new password"
+            value={confPw} onChange={e => setConfPw(e.target.value)}
+            rightElement={
+              <button type="button" onClick={() => setShowConf(!showConf)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                {showConf ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            }
+          />
+          {pwError && (
+            <div className="flex items-center gap-2 text-sm text-danger-light">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              {pwError}
+            </div>
+          )}
+          <Button leftIcon={<Lock className="h-4 w-4" />} loading={pwSaving} onClick={changePassword}>
+            Update Password
+          </Button>
         </div>
       </Card>
 

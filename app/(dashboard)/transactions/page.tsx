@@ -50,6 +50,9 @@ export default function TransactionsPage() {
   const [page,        setPage]        = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const [selected,    setSelected]    = useState<Set<string>>(new Set());
+  // Summary from the dedicated endpoint — accurate across all pages
+  const [summaryIn,   setSummaryIn]   = useState(0);
+  const [summaryOut,  setSummaryOut]  = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -65,10 +68,21 @@ export default function TransactionsPage() {
       if (dateTo)                 params.to       = dateTo;
       if (search)                 params.search   = search;
 
-      const res = await transactionsApi.list(params);
-      setTxList((res.data ?? []) as Transaction[]);
-      const pag = (res as { pagination?: { total: number } }).pagination;
-      setTotal(pag?.total ?? 0);
+      const [listRes, sumRes] = await Promise.allSettled([
+        transactionsApi.list(params),
+        transactionsApi.summary(),
+      ]);
+
+      if (listRes.status === "fulfilled") {
+        setTxList((listRes.value.data ?? []) as Transaction[]);
+        const pag = (listRes.value as { pagination?: { total: number } }).pagination;
+        setTotal(pag?.total ?? 0);
+      }
+      if (sumRes.status === "fulfilled") {
+        const s = (sumRes.value.data as { totalIn: number; totalOut: number } | null);
+        setSummaryIn(s?.totalIn ?? 0);
+        setSummaryOut(s?.totalOut ?? 0);
+      }
     } catch {
       toast.error("Failed to load transactions");
     } finally {
@@ -78,9 +92,8 @@ export default function TransactionsPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Summary from loaded page
-  const totalIn  = txList.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0);
-  const totalOut = txList.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
+  // Clear selection whenever filters or page changes
+  useEffect(() => { setSelected(new Set()); }, [page, typeFilter, statusFilter, category, dateFrom, dateTo, search]);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
@@ -128,12 +141,12 @@ export default function TransactionsPage() {
         </Button>
       </div>
 
-      {/* Summary cards */}
+      {/* Summary cards — from dedicated summary endpoint, accurate across all pages */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { label: "Total In",  value: totalIn,              positive: true  },
-          { label: "Total Out", value: totalOut,             positive: false },
-          { label: "Net",       value: totalIn - totalOut,   positive: totalIn >= totalOut },
+          { label: "Total In",  value: summaryIn,                      positive: true  },
+          { label: "Total Out", value: summaryOut,                     positive: false },
+          { label: "Net",       value: summaryIn - summaryOut,         positive: summaryIn >= summaryOut },
         ].map((s) => (
           <div key={s.label} className="stat-card">
             <p className="text-sm text-slate-500 dark:text-slate-400">{s.label}</p>

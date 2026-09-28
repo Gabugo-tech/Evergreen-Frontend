@@ -53,9 +53,33 @@ export default function BankingPage() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    let mounted = true;
+    const run = async () => {
+      setLoading(true);
+      try {
+        const [accsRes, txRes, trendsRes, catRes] = await Promise.allSettled([
+          accountsApi.list(),
+          transactionsApi.list({ per_page: "10" }),
+          analyticsApi.monthlyTrends(6),
+          analyticsApi.spendingByCategory(),
+        ]);
+        if (!mounted) return;
+        if (accsRes.status   === "fulfilled") setAccounts((accsRes.value.data ?? []) as BankAccount[]);
+        if (txRes.status     === "fulfilled") setTxList((txRes.value.data ?? []) as Transaction[]);
+        if (trendsRes.status === "fulfilled") setTrends((trendsRes.value.data ?? []) as SpendTrend[]);
+        if (catRes.status    === "fulfilled") setCatBreak((catRes.value.data ?? []) as CategoryBreakdown[]);
+      } catch {
+        if (mounted) toast.error("Failed to load banking data");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    run();
+    return () => { mounted = false; };
+  }, []);
 
-  const totalBalance   = accounts.reduce((s, a) => s + a.balance, 0);
+  const totalBalance   = accounts.reduce((s, a) => s + Number(a.balance ?? 0), 0);
   const primaryAccount = accounts.find(a => a.is_primary);
 
   // Build bar chart data from monthly trends

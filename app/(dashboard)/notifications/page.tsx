@@ -80,35 +80,53 @@ export default function NotificationsPage() {
     : notifications.filter((n) => n.type === filter);
 
   const markRead = async (id: string) => {
+    // Optimistic update
+    const prev = notifications.slice();
+    setNotifications((n) => n.map((x) => x.id === id ? { ...x, is_read: true } : x));
     try {
       await notificationsApi.markRead(id);
-      setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, is_read: true } : n));
-    } catch { /* silent */ }
+    } catch {
+      // Rollback on failure
+      setNotifications(prev);
+      toast.error("Failed to mark as read");
+    }
   };
 
   const markAllRead = async () => {
+    const prev = notifications.slice();
+    setNotifications((n) => n.map((x) => ({ ...x, is_read: true })));
     try {
       await notificationsApi.markAllRead();
-      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
       toast.success("All notifications marked as read");
     } catch {
+      setNotifications(prev);
       toast.error("Failed to update notifications");
     }
   };
 
   const deleteOne = async (id: string) => {
+    const prev = notifications.slice();
+    setNotifications((n) => n.filter((x) => x.id !== id));
     try {
       await notificationsApi.delete(id);
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
-    } catch { /* silent */ }
+    } catch {
+      setNotifications(prev);
+      toast.error("Failed to delete notification");
+    }
   };
 
   const clearAll = async () => {
+    // Only clear notifications matching the active filter to avoid confusing UX
+    const prev = notifications.slice();
+    const toRemove = filter === "all"
+      ? new Set(notifications.map((n) => n.id))
+      : new Set(notifications.filter((n) => n.type === filter).map((n) => n.id));
+    setNotifications((n) => n.filter((x) => !toRemove.has(x.id)));
     try {
       await notificationsApi.clearAll();
-      setNotifications([]);
-      toast.success("All notifications cleared");
+      toast.success("Notifications cleared");
     } catch {
+      setNotifications(prev);
       toast.error("Failed to clear notifications");
     }
   };

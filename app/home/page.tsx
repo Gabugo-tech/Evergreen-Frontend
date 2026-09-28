@@ -25,7 +25,7 @@ const features = [
   {
     icon: CreditCard,
     title: "Multi-Currency Banking",
-    desc: "Hold, send, and receive in NGN, USD, GBP, EUR and 11 other currencies with real-time exchange rates.",
+    desc: "Hold, send, and receive in NGN, USD, GBP, EUR and 13 other currencies with real-time exchange rates.",
     color: "bg-primary-500/10 text-primary-500",
   },
   {
@@ -103,7 +103,7 @@ const faqs = [
   },
   {
     q: "What currencies can I hold?",
-    a: "Evergreen supports 15 currencies including NGN, USD, GBP, EUR, CAD, AUD, JPY, CHF, INR, CNY, BRL, MXN, ZAR, SGD, and AED.",
+    a: "Evergreen supports 17 currencies including NGN, USD, GBP, EUR, CAD, AUD, JPY, CHF, INR, CNY, BRL, MXN, ZAR, SGD, AED, THB, and TWD.",
   },
   {
     q: "What are the fees?",

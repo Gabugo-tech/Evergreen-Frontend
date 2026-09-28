@@ -26,7 +26,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token,     setToken]   = useState<string | null>(null);
   const [isLoading, setLoading] = useState(true);
 
-  // Keep fetchUser in a ref so the mount effect can call it without being a dep
   const fetchUserRef = useRef<(() => Promise<void>) | undefined>(undefined);
 
   const fetchUser = useCallback(async () => {
@@ -34,17 +33,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await usersApi.me();
       setUser(res.data as User);
     } catch (err) {
-      // Only clear the session for explicit 401 auth failures.
-      // Network errors / 5xx should NOT log the user out — that caused
-      // the admin panel redirect-to-login bug on slow connections.
-      const msg = err instanceof Error ? err.message : "";
-      const is401 = msg.includes("401") || msg.toLowerCase().includes("unauthorized");
+      const msg    = err instanceof Error ? err.message : "";
+      // Detect 401 via the [status] prefix we now embed, or legacy text
+      const is401  = /\[401\]/.test(msg) || msg.toLowerCase().includes("unauthorized");
       if (is401) {
         localStorage.removeItem(TOKEN_KEY);
         setToken(null);
         setUser(null);
       }
-      // Otherwise: leave the token/user intact and let the UI show stale state.
+      // Network errors / 5xx leave the session intact
     }
   }, []);
 
@@ -53,22 +50,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // On mount: restore session from localStorage
   useEffect(() => {
     const stored = localStorage.getItem(TOKEN_KEY);
-    if (stored) {
-      setToken(stored);
-      fetchUserRef.current?.().finally(() => setLoading(false));
-    } else {
+    if (!stored) {
       setLoading(false);
+      return;
     }
+    setToken(stored);
+    // Guard: if ref somehow not set yet, still unblock the app
+    const ref = fetchUserRef.current;
+    if (!ref) { setLoading(false); return; }
+    ref().finally(() => setLoading(false));
   }, []); // intentionally empty — run once on mount only
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await authApi.login(email, password);
-    // Backend wraps response as { success, message, data: { token, user } }
     const payload = (res as { data?: { token: string; user: User } }).data
                  ?? (res as unknown as { token: string; user: User });
     const t = payload.token;
     const u = payload.user;
-    if (!t) throw new Error("Authentication failed — no token received");
+    if (!t || !u) throw new Error("Authentication failed — incomplete response from server");
     localStorage.setItem(TOKEN_KEY, t);
     setToken(t);
     setUser(u);
@@ -80,7 +79,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
-  /** Called after registration to hydrate the session without a round-trip. */
   const setSession = useCallback((t: string, u: User) => {
     localStorage.setItem(TOKEN_KEY, t);
     setToken(t);

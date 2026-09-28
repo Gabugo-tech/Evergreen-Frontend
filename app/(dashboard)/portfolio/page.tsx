@@ -46,6 +46,7 @@ export default function PortfolioPage() {
 
   const load = async () => {
     setLoading(true);
+    setHistory([]); // clear stale chart data on period change
     try {
       const [holdRes, allocRes, metRes, histRes] = await Promise.allSettled([
         investmentsApi.list(),
@@ -61,7 +62,29 @@ export default function PortfolioPage() {
     finally  { setLoading(false); }
   };
 
-  useEffect(() => { load(); }, [period]);
+  useEffect(() => {
+    let mounted = true;
+    const run = async () => {
+      setLoading(true);
+      setHistory([]);
+      try {
+        const [holdRes, allocRes, metRes, histRes] = await Promise.allSettled([
+          investmentsApi.list(),
+          analyticsApi.assetAllocation(),
+          analyticsApi.portfolioMetrics(),
+          analyticsApi.portfolioHistory(period),
+        ]);
+        if (!mounted) return;
+        if (holdRes.status  === "fulfilled") setHoldings((holdRes.value.data  ?? []) as Holding[]);
+        if (allocRes.status === "fulfilled") setAlloc((allocRes.value.data    ?? []) as Allocation[]);
+        if (metRes.status   === "fulfilled") setMetrics(metRes.value.data as PortfolioMetrics);
+        if (histRes.status  === "fulfilled") setHistory(((histRes.value.data as HistoryData)?.snapshots ?? []));
+      } catch { if (mounted) toast.error("Failed to load portfolio"); }
+      finally  { if (mounted) setLoading(false); }
+    };
+    run();
+    return () => { mounted = false; };
+  }, [period]);
 
   const donutData = alloc.map((a, i) => ({ name: a.asset_type, value: a.percentage, color: ALLOC_COLORS[i % ALLOC_COLORS.length] }));
   const filtered  = useMemo(() => holdings.filter(h => {
