@@ -394,6 +394,7 @@ export default function PaymentsPage() {
   const [receiptData,   setReceiptData] = useState<ReceiptData | null>(null);
   const [pendingData,   setPendingData] = useState<SendFormData | null>(null);
   const [sending,       setSending]     = useState(false);
+  const [recipientEmail, setRecipientEmail] = useState("");
 
   // PIN state
   const [pinOpen,       setPinOpen]     = useState(false);
@@ -588,6 +589,7 @@ export default function PaymentsPage() {
         description:       pendingData.description,
         transfer_type:     pendingData.transfer_type,
         payment_pin:       (pendingData as SendFormData & { _pin?: string })._pin ?? "",
+        recipient_email:   recipientEmail.trim() || undefined,
       });
 
       const txData = (res as { data: { transaction: { reference: string; created_at: string }; fee: number } }).data;
@@ -615,6 +617,7 @@ export default function PaymentsPage() {
     setTimeout(() => setReceiptOpen(true), 150);
     reset();
     setLookupResult(null);
+    setRecipientEmail("");
     loadData();
   };
 
@@ -831,6 +834,18 @@ export default function PaymentsPage() {
                             )}
 
                             <Input label="Description" placeholder="What's this for?" error={errors.description?.message} {...register("description")} />
+
+                            {/* Optional recipient email for credit alert */}
+                            <div>
+                              <Input
+                                label="Recipient Email (optional)"
+                                type="email"
+                                placeholder="recipient@email.com"
+                                hint="We'll send them a transfer notification"
+                                value={recipientEmail}
+                                onChange={e => setRecipientEmail(e.target.value)}
+                              />
+                            </div>
 
                             <div className="pt-1">
                               <Button type="submit" fullWidth size="lg" leftIcon={<Send className="h-4 w-4" />}>

@@ -63,6 +63,7 @@ export interface PaymentPayload {
   description:       string;
   transfer_type:     "local" | "international";
   payment_pin:       string;
+  recipient_email?:  string;
 }
 
 // ─── Portfolio & Investments ──────────────────────────────────────────────────
