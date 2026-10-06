@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import {
   User, Lock, Bell, Shield, CreditCard,
   Camera, Save, Eye, EyeOff, CheckCircle2,
@@ -292,11 +292,25 @@ function SecurityTab() {
   const [twoFA,     setTwoFA]     = useState(true);
   const [biometric, setBiometric] = useState(false);
 
-  const sessions = [
-    { device: "Chrome · Windows 11", location: "Lagos, Nigeria",     lastSeen: "Now — Current", current: true  },
-    { device: "Safari · iPhone 15",  location: "San Francisco, USA", lastSeen: "2 hours ago",   current: false },
-    { device: "Firefox · macOS",     location: "London, UK",         lastSeen: "3 days ago",    current: false },
-  ];
+  // Detect current session info from the browser
+  const currentSession = useMemo(() => {
+    const ua = navigator.userAgent;
+    let device = "Unknown Browser";
+    let os     = "Unknown OS";
+
+    if (/Chrome/.test(ua) && !/Edg/.test(ua))       device = "Chrome";
+    else if (/Firefox/.test(ua))                      device = "Firefox";
+    else if (/Safari/.test(ua) && !/Chrome/.test(ua)) device = "Safari";
+    else if (/Edg/.test(ua))                           device = "Edge";
+
+    if (/Windows/.test(ua))      os = "Windows";
+    else if (/Mac/.test(ua))     os = "macOS";
+    else if (/iPhone/.test(ua))  os = "iPhone";
+    else if (/Android/.test(ua)) os = "Android";
+    else if (/Linux/.test(ua))   os = "Linux";
+
+    return { device: `${device} · ${os}`, lastSeen: "Now — Current", current: true };
+  }, []);
 
   const changePassword = async () => {
     setPwError(null);
@@ -394,31 +408,23 @@ function SecurityTab() {
       <Card>
         <CardHeader>
           <CardTitle>Active Sessions</CardTitle>
-          <Button variant="danger" size="xs">End All Others</Button>
         </CardHeader>
         <div className="space-y-3">
-          {sessions.map((s) => (
-            <div key={s.device} className="flex items-center justify-between p-3.5 rounded-xl border border-light-border dark:border-dark-border">
-              <div className="flex items-center gap-3">
-                <div className={cn(
-                  "h-2.5 w-2.5 rounded-full flex-shrink-0",
-                  s.current ? "bg-success-light" : "bg-slate-300 dark:bg-slate-600"
-                )} />
-                <div>
-                  <p className="text-sm font-medium text-slate-900 dark:text-white flex items-center gap-2">
-                    {s.device}
-                    {s.current && <Badge variant="green">Current</Badge>}
-                  </p>
-                  <p className="text-xs text-slate-400">{s.location} · {s.lastSeen}</p>
-                </div>
+          <div className="flex items-center justify-between p-3.5 rounded-xl border border-light-border dark:border-dark-border">
+            <div className="flex items-center gap-3">
+              <div className="h-2.5 w-2.5 rounded-full bg-success-light flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-slate-900 dark:text-white flex items-center gap-2">
+                  {currentSession.device}
+                  <Badge variant="green">Current</Badge>
+                </p>
+                <p className="text-xs text-slate-400">{currentSession.lastSeen}</p>
               </div>
-              {!s.current && (
-                <Button variant="ghost" size="xs" className="text-danger-light hover:bg-danger-bg dark:hover:bg-red-900/20">
-                  Revoke
-                </Button>
-              )}
             </div>
-          ))}
+          </div>
+          <p className="text-xs text-slate-400 dark:text-slate-500 px-1">
+            Only your current session is shown. Previous sessions are cleared on logout.
+          </p>
         </div>
       </Card>
     </div>

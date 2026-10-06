@@ -838,7 +838,7 @@ export default function PaymentsPage() {
                             {/* Optional recipient email for credit alert */}
                             <div>
                               <Input
-                                label="Recipient Email (optional)"
+                                label="Recipient Email"
                                 type="email"
                                 placeholder="recipient@email.com"
                                 hint="We'll send them a transfer notification"
