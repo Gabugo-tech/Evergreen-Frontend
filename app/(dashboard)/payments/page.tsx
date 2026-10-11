@@ -43,6 +43,7 @@ const CURRENCIES = [
   { code: "SGD", name: "Singapore Dollar", symbol: "S$",  flag: "🇸🇬" },
   { code: "THB", name: "Thai Baht",          symbol: "฿",   flag: "🇹🇭" },
   { code: "TWD", name: "Taiwan Dollar",       symbol: "NT$", flag: "🇹🇼" },
+  { code: "IDR", name: "Indonesian Rupiah",   symbol: "Rp",  flag: "🇮🇩" },
   { code: "AED", name: "UAE Dirham",          symbol: "د.إ", flag: "🇦🇪" },
 ];
 
