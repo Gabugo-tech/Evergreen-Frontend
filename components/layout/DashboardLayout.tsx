@@ -5,6 +5,7 @@ import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 import MobileSidebar from "./MobileSidebar";
 import VisitorTracker from "./VisitorTracker";
+import ChatWidget from "@/components/chat/ChatWidget";
 import { Toaster } from "react-hot-toast";
 import { notificationsApi } from "@/lib/api";
 
@@ -85,6 +86,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         }}
       />
       <VisitorTracker />
+      <ChatWidget />
     </div>
   );
 }

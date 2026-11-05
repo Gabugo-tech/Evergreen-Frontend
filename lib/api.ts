@@ -254,3 +254,18 @@ export const investmentsApi = {
   delete: (id: string) =>
     python(`/api/investments/${id}`, { method: "DELETE" }),
 };
+
+// ─── AI Chat ──────────────────────────────────────────────────────────────────
+
+export interface ChatMessage {
+  role: "user" | "model";
+  parts: { text: string }[];
+}
+
+export const chatApi = {
+  send: (message: string, history: ChatMessage[]) =>
+    node<{ data: { reply: string } }>("/api/chat", {
+      method: "POST",
+      body: JSON.stringify({ message, history }),
+    }),
+};
