@@ -7,6 +7,7 @@ export interface User {
   phone?: string;
   kyc_status: "pending" | "verified" | "rejected";
   account_type: "personal" | "business";
+  is_active: boolean;
   created_at: string;
 }
 

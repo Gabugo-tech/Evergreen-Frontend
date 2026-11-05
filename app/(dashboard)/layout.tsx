@@ -6,14 +6,17 @@ import { useAuth } from "@/context/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (isLoading) return;
+    if (!isAuthenticated) {
       router.replace("/login");
+    } else if (user?.is_active === false) {
+      router.replace("/suspended");
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isLoading, user, router]);
 
   if (isLoading) {
     return (
@@ -28,7 +31,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!isAuthenticated) return null;
+  if (!isAuthenticated || user?.is_active === false) return null;
 
   return <DashboardLayout>{children}</DashboardLayout>;
 }

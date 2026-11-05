@@ -69,11 +69,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const payload = (res as { data?: { token: string; user: User } }).data
                  ?? (res as unknown as { token: string; user: User });
     const t = payload.token;
-    const u = payload.user;
+    const u = payload.user as User;
     if (!t || !u) throw new Error("Authentication failed — incomplete response from server");
     localStorage.setItem(TOKEN_KEY, t);
     setToken(t);
     setUser(u);
+    // Suspended users get a token but are redirected to the suspended page
+    if (u.is_active === false) {
+      window.location.href = "/suspended";
+    }
   }, []);
 
   const logout = useCallback(() => {
