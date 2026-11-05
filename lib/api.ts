@@ -133,6 +133,8 @@ export const usersApi = {
   updateProfile: (body: unknown) =>
     node("/api/users/me", { method: "PATCH", body: JSON.stringify(body) }),
   kycStatus: () => node<{ data: { kyc_status: string } }>("/api/users/me/kyc"),
+  removeAvatar: () =>
+    node("/api/users/me/avatar", { method: "DELETE" }),
   uploadAvatar: (file: File) => {
     const form = new FormData();
     form.append("avatar", file);

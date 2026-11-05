@@ -125,7 +125,7 @@ function ProfileTab() {
   const handleRemovePhoto = async () => {
     setUploading(true);
     try {
-      await usersApi.updateProfile({ avatar_url: null });
+      await usersApi.removeAvatar();
       await refreshUser();
       setAvatarPreview(null);
       toast.success("Profile photo removed");
