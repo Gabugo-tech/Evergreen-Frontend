@@ -85,10 +85,11 @@ export default function ChatWidget() {
         timestamp: new Date(),
       }]);
     } catch (err) {
+      const errMsg = err instanceof Error ? err.message : "Unknown error";
       setMessages(prev => [...prev, {
         id:        crypto.randomUUID(),
         role:      "assistant",
-        text:      "Sorry, I'm having trouble connecting. Please try again or contact support at evergreenworldbank@gmail.com.",
+        text:      `Sorry, I'm having trouble right now (${errMsg}). Please try again or contact support at evergreenworldbank@gmail.com.`,
         timestamp: new Date(),
       }]);
     } finally {
