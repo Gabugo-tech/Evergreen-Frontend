@@ -86,10 +86,15 @@ export default function ChatWidget() {
       }]);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : "Unknown error";
+      // Show a clean message — strip raw JSON error objects
+      const isHighDemand = errMsg.includes("high demand") || errMsg.includes("UNAVAILABLE");
+      const displayMsg = isHighDemand
+        ? "Aria is experiencing high demand right now. Please try again in a moment."
+        : "Sorry, I'm having trouble connecting. Please try again or contact support at evergreenworldbank@gmail.com.";
       setMessages(prev => [...prev, {
         id:        crypto.randomUUID(),
         role:      "assistant",
-        text:      `Sorry, I'm having trouble right now (${errMsg}). Please try again or contact support at evergreenworldbank@gmail.com.`,
+        text:      displayMsg,
         timestamp: new Date(),
       }]);
     } finally {
