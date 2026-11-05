@@ -59,7 +59,9 @@ export default function SuspendedPage() {
 
             {/* Contact support */}
             <a
-              href="mailto:evergreenworldbank@gmail.com"
+              href="https://mail.google.com/mail/?view=cm&to=evergreenworldbank@gmail.com&su=Account%20Suspension%20Inquiry&body=Hello%20Evergreen%20Support%2C%0A%0AMy%20account%20has%20been%20suspended.%20Please%20help%20me%20resolve%20this.%0A%0AAccount%20email%3A%20"
+              target="_blank"
+              rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold transition-colors"
             >
               <Mail className="h-4 w-4" />
