@@ -37,7 +37,10 @@ async function request<T>(
 
   if (!res.ok) {
     const msg = json?.message ?? json?.error ?? `Request failed (${res.status})`;
-    throw new Error(msg);
+    // Embed HTTP status in the error so callers can detect 401/403
+    const error = new Error(msg) as Error & { status: number };
+    error.status = res.status;
+    throw error;
   }
 
   return json;

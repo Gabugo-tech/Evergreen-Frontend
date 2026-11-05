@@ -34,9 +34,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(res.data as User);
     } catch (err) {
       const msg    = err instanceof Error ? err.message : "";
-      // Detect 401 via the [status] prefix we now embed, or legacy text
-      const is401  = /\[401\]/.test(msg) || msg.toLowerCase().includes("unauthorized");
-      if (is401) {
+      const status = (err as { status?: number }).status;
+      // 401 = expired/invalid token, 403 = suspended account — both force logout
+      const forceLogout = status === 401 || status === 403
+        || /\[401\]/.test(msg) || msg.toLowerCase().includes("unauthorized")
+        || msg.toLowerCase().includes("suspended");
+      if (forceLogout) {
         localStorage.removeItem(TOKEN_KEY);
         setToken(null);
         setUser(null);
