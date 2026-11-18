@@ -67,11 +67,11 @@ export default function ChatWidget() {
       const res = await chatApi.send(trimmed, historyRef.current);
       const reply = res.data.reply;
 
-      // Update Gemini history
+      // Update history (OpenAI format: role + content)
       historyRef.current = [
         ...historyRef.current,
-        { role: "user",  parts: [{ text: trimmed }] },
-        { role: "model", parts: [{ text: reply    }] },
+        { role: "user",      content: trimmed },
+        { role: "assistant", content: reply   },
       ];
       // Keep history bounded to last 20 turns (10 exchanges)
       if (historyRef.current.length > 20) {

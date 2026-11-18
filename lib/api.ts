@@ -1,10 +1,12 @@
 /**
  * Evergreen API client
- * Wraps all calls to the Node.js backend and Python analytics service.
+ * ALL requests go through the Node.js gateway — including analytics and investments.
+ * The Node gateway proxies /api/analytics/* and /api/investments/* to the Python
+ * microservice internally, adding the X-Internal-Secret header. This prevents
+ * direct access to the Python service from the browser.
  */
 
-const NODE_URL  = process.env.NEXT_PUBLIC_NODE_API_URL  ?? "http://localhost:4000";
-const PYTHON_URL = process.env.NEXT_PUBLIC_PYTHON_API_URL ?? "http://localhost:8000";
+const NODE_URL = process.env.NEXT_PUBLIC_NODE_API_URL ?? "http://localhost:4000";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -15,13 +17,12 @@ function getAuthHeader(): Record<string, string> {
 }
 
 async function request<T>(
-  base: string,
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`${base}${path}`, {
+    res = await fetch(`${NODE_URL}${path}`, {
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -37,7 +38,6 @@ async function request<T>(
 
   if (!res.ok) {
     const msg = json?.message ?? json?.error ?? `Request failed (${res.status})`;
-    // Embed HTTP status in the error so callers can detect 401/403
     const error = new Error(msg) as Error & { status: number };
     error.status = res.status;
     throw error;
@@ -47,11 +47,7 @@ async function request<T>(
 }
 
 function node<T>(path: string, options?: RequestInit) {
-  return request<T>(NODE_URL, path, options);
-}
-
-function python<T>(path: string, options?: RequestInit) {
-  return request<T>(PYTHON_URL, path, options);
+  return request<T>(path, options);
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -94,34 +90,27 @@ export const authApi = {
       body: JSON.stringify({ email, otp, password }),
     }),
 
-  // ── Payment PIN ────────────────────────────────────────────────────────────
-
-  /** Set payment PIN for the first time (existing users without a PIN) */
   setPin: (pin: string) =>
     node("/api/auth/set-pin", {
       method: "POST",
       body: JSON.stringify({ pin }),
     }),
 
-  /** Verify payment PIN before a transfer (lightweight pre-check) */
   verifyPin: (pin: string) =>
     node<{ data: { verified: boolean } }>("/api/auth/verify-pin", {
       method: "POST",
       body: JSON.stringify({ pin }),
     }),
 
-  /** Request OTP to be sent to registered email for PIN reset */
   requestPinReset: () =>
     node("/api/auth/request-pin-reset", { method: "POST" }),
 
-  /** Verify PIN-reset OTP — authenticated endpoint, no email needed */
   verifyPinOtp: (otp: string) =>
     node<{ data: { verified: boolean } }>("/api/auth/verify-pin-reset-otp", {
       method: "POST",
       body: JSON.stringify({ otp }),
     }),
 
-  /** Complete PIN reset with OTP + new PIN */
   resetPin: (otp: string, new_pin: string) =>
     node("/api/auth/reset-pin", {
       method: "POST",
@@ -139,12 +128,10 @@ export const usersApi = {
   removeAvatar: () =>
     node("/api/users/me/avatar", { method: "DELETE" }),
   uploadAvatar: (file: File) => {
-    const form = new FormData();
+    const form  = new FormData();
     form.append("avatar", file);
     const token = typeof window !== "undefined" ? localStorage.getItem("eg_token") ?? "" : "";
-    const base  = process.env.NEXT_PUBLIC_NODE_API_URL ?? "http://localhost:4000";
-    // Use raw fetch — no Content-Type header so browser sets multipart boundary automatically
-    return fetch(`${base}/api/users/me/avatar`, {
+    return fetch(`${NODE_URL}/api/users/me/avatar`, {
       method:  "POST",
       headers: { Authorization: `Bearer ${token}` },
       body:    form,
@@ -165,7 +152,6 @@ export const accountsApi = {
   create: (body: unknown) =>
     node("/api/accounts", { method: "POST", body: JSON.stringify(body) }),
   lookup: (accountNumber: string) => {
-    // Strip all non-digit characters (spaces, dashes, letters like EG prefix)
     const clean = accountNumber.replace(/\D/g, "");
     return node<{ data: { account_number: string; account_name: string; account_type: string; currency: string } }>(
       `/api/accounts/lookup/${clean}`
@@ -219,47 +205,47 @@ export const notificationsApi = {
   clearAll: () => node("/api/notifications", { method: "DELETE" }),
 };
 
-// ─── Analytics (Python service) ───────────────────────────────────────────────
+// ─── Analytics — routed through Node gateway ──────────────────────────────────
 
 export const analyticsApi = {
   spendingByCategory: (params?: { from?: string; to?: string }) => {
     const qs = params ? "?" + new URLSearchParams(params as Record<string, string>).toString() : "";
-    return python<{ data: unknown[] }>(`/api/analytics/spending/categories${qs}`);
+    return node<{ data: unknown[] }>(`/api/analytics/spending/categories${qs}`);
   },
   monthlyTrends: (months = 6) =>
-    python<{ data: unknown[] }>(`/api/analytics/spending/trends?months=${months}`),
+    node<{ data: unknown[] }>(`/api/analytics/spending/trends?months=${months}`),
   portfolioMetrics: () =>
-    python<{ data: unknown }>("/api/analytics/portfolio/metrics"),
+    node<{ data: unknown }>("/api/analytics/portfolio/metrics"),
   portfolioHistory: (period = "1Y") =>
-    python<{ data: unknown }>(`/api/analytics/portfolio/history?period=${period}`),
+    node<{ data: unknown }>(`/api/analytics/portfolio/history?period=${period}`),
   assetAllocation: () =>
-    python<{ data: unknown[] }>("/api/analytics/portfolio/allocation"),
-  netWorth: () => python<{ data: unknown }>("/api/analytics/net-worth"),
+    node<{ data: unknown[] }>("/api/analytics/portfolio/allocation"),
+  netWorth: () => node<{ data: unknown }>("/api/analytics/net-worth"),
 };
 
-// ─── Investments ──────────────────────────────────────────────────────────────
+// ─── Investments — routed through Node gateway ────────────────────────────────
 
 export const investmentsApi = {
-  list: () => python<{ data: unknown[] }>("/api/investments"),
+  list: () => node<{ data: unknown[] }>("/api/investments"),
   add: (body: unknown) =>
-    python<{ data: unknown }>("/api/investments", {
+    node<{ data: unknown }>("/api/investments", {
       method: "POST",
       body: JSON.stringify(body),
     }),
   update: (id: string, body: unknown) =>
-    python<{ data: unknown }>(`/api/investments/${id}`, {
+    node<{ data: unknown }>(`/api/investments/${id}`, {
       method: "PATCH",
       body: JSON.stringify(body),
     }),
   delete: (id: string) =>
-    python(`/api/investments/${id}`, { method: "DELETE" }),
+    node(`/api/investments/${id}`, { method: "DELETE" }),
 };
 
 // ─── AI Chat ──────────────────────────────────────────────────────────────────
 
 export interface ChatMessage {
-  role: "user" | "model";
-  parts: { text: string }[];
+  role: "user" | "assistant";
+  content: string;
 }
 
 export const chatApi = {
