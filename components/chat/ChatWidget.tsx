@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
-  MessageCircle, X, Send, Sparkles, User,
+  X, Send, Sparkles, User,
   Loader2, ChevronDown, Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
