@@ -336,15 +336,24 @@ export default function ChatWidget() {
       {/* ── Floating trigger ─────────────────────────────────────────────── */}
       <button
         onClick={() => setOpen(prev => !prev)}
-        className={cn(
-          "fixed bottom-6 right-4 sm:right-6 z-50 h-14 w-14 rounded-full shadow-xl flex items-center justify-center transition-all duration-200",
-          "bg-gradient-to-br from-primary-500 to-primary-700 hover:scale-105 shadow-primary-700/40"
-        )}
+        className="fixed bottom-6 right-4 sm:right-6 z-50 h-14 w-14 rounded-2xl shadow-xl flex items-center justify-center transition-all duration-200 bg-primary-600 hover:bg-primary-700 hover:scale-105 shadow-primary-700/40"
         aria-label="Open Aria AI Assistant"
       >
-        {open
-          ? <X className="h-6 w-6 text-white" />
-          : <Sparkles className="h-6 w-6 text-white" />}
+        {open ? (
+          <X className="h-6 w-6 text-white" />
+        ) : (
+          <svg viewBox="0 0 36 36" fill="none" className="h-8 w-8" xmlns="http://www.w3.org/2000/svg">
+            {/* Chat bubble body */}
+            <path
+              d="M6 8C6 5.79 7.79 4 10 4H26C28.21 4 30 5.79 30 8V21C30 23.21 28.21 25 26 25H14L8 31V25H10C7.79 25 6 23.21 6 21V8Z"
+              fill="white"
+            />
+            {/* Three dots inside bubble */}
+            <circle cx="13" cy="14.5" r="2" fill="#2563eb" />
+            <circle cx="18" cy="14.5" r="2" fill="#2563eb" />
+            <circle cx="23" cy="14.5" r="2" fill="#2563eb" />
+          </svg>
+        )}
       </button>
     </>
   );
